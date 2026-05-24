@@ -3,31 +3,112 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --ink: #0B2545;
+  --ink-deep: #07182F;
+  --ink-raised: #16335C;
+  --strate: #2D6A4F;
+  --foil: #C9A961;
+  --foil-deep: #B89545;
+  --parchment: #F5F1E8;
+  --parchment-aged: #EDE6D3;
+  --ledger: #1A1A1A;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+html { scroll-behavior: smooth; }
+
+html, body {
+  background: var(--ink);
+  color: var(--parchment);
+  font-family: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  font-feature-settings: "ss01" 1, "cv11" 2, "kern" 1, "liga" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+/* Persistent atmospheric overlays: parchment dot grid + noise.
+   Same recipe as the marketing site so the app reads as continuous. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  background-image: radial-gradient(rgba(245,241,232,0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.06;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.78' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 280px 280px;
+  mix-blend-mode: overlay;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+/* Numerals (financial UI: tabular by default everywhere) */
+.num, .tnum, .font-mono, [data-num] {
+  font-variant-numeric: tabular-nums lining-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "lnum" 1, "zero" 1;
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid var(--foil);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: rgba(201,169,97,0.30);
+  color: var(--parchment);
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(245,241,232,0.14); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(245,241,232,0.30); }
+
+/* Foil text gradient (used on numbers we want to highlight) */
+.text-foil-gradient {
+  background: linear-gradient(180deg, #D6B673 0%, #B89545 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Hairlines */
+.rule-foil {
+  background: linear-gradient(to right, transparent 0%, rgba(201,169,97,0.50) 18%, rgba(201,169,97,0.50) 82%, transparent 100%);
+  height: 1px;
+  border: none;
+}
+.rule-parchment { background: rgba(245,241,232,0.10); height: 1px; border: none; }
+
+/* Editorial panel — used for cards, forms, drawer */
+.panel {
+  background: rgba(22, 51, 92, 0.32);
+  border: 1px solid rgba(245, 241, 232, 0.08);
+}
+.panel-foil { border: 1px solid rgba(201, 169, 97, 0.28); }
+
+/* Wordmark perforation hover */
+.strate-wordmark .strate-perf { transition: filter 120ms ease-out; }
+.strate-wordmark:hover .strate-perf {
+  filter: drop-shadow(0 1px 2px rgba(201,169,97,0.45));
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

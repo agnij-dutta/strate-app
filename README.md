@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# strate-app
 
-## Getting Started
+The Strate dApp. Yield-stripping for Stellar RWAs.
 
-First, run the development server:
+## Status
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
+Pre-testnet. All chain calls route through a mock data layer (`lib/mocks.ts`)
+until the protocol contracts are deployed to testnet via the Factory. UI
+flows are complete and clickable end-to-end; the sign + broadcast step in
+`components/TxDrawer.tsx` is a stub that simulates the wallet round-trip.
+
+## Stack
+
+- Next.js 14 (App Router) + Tailwind + Framer Motion
+- `@strate/sdk` linked locally via `file:../strate-sdk`
+- `@stellar/freighter-api` for wallet
+- TanStack Query for cache
+- Zustand for wallet + tx state
+- Vercel Analytics
+
+## Routes
+
+| Path | What |
+| --- | --- |
+| `/` | Redirects to `/markets` |
+| `/markets` | Index of yield-stripping markets |
+| `/markets/[id]` | Market detail with Mint / Redeem / Swap tabs + yield curve |
+| `/portfolio` | User positions + claim yield |
+
+## Run
+
+```sh
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+To connect Freighter, install the extension and switch its network selector
+to "Testnet."
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+## Going live (post-testnet deploy)
 
-## Learn More
+1. Set `NEXT_PUBLIC_FACTORY_ADDRESS` in `.env.local` to the deployed Factory
+   contract address (the deterministic one produced by `factory init`).
+2. Toggle `USE_MOCKS = false` in `lib/mocks.ts`.
+3. Swap mock call sites for SDK hooks:
+   - `MOCK_MARKETS` → `useMarkets()` (to be added in SDK)
+   - `MOCK_POSITION` → `useUserPosition({ market, user })`
+   - mock chart data → `useYieldCurve({ market })`
+4. Replace the stub in `TxDrawer.onSign` with:
+   - `const xdr = await client.build<Mint|Redeem|Swap>(...)`
+   - `const signed = await adapter.signTransaction(xdr.toXDR(), { networkPassphrase })`
+   - `const result = await client.server.sendTransaction(signed)`
+   - Poll `getTransaction(result.hash)` until SUCCESS, then `setSuccess(hash)`.
 
-To learn more about Next.js, take a look at the following resources:
+## Brand
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+Treasury Ink `#0B2545` · Foil Gold `#C9A961` · Parchment `#F5F1E8`.
+Fraunces (display) + JetBrains Mono (numbers). Same palette as the landing
+site at usestrate.app so the brand carries across.
