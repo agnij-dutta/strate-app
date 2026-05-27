@@ -36,7 +36,7 @@ export default function PortfolioPage() {
     1e7;
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-6 py-12 lg:px-10 lg:py-16">
+    <div className="mx-auto w-full max-w-[1400px] px-5 py-10 sm:px-6 sm:py-12 lg:px-10 lg:py-16">
       <div className="flex items-baseline gap-4 font-mono text-[10px] uppercase tracking-[0.36em] text-foil/80">
         <span>§ 01</span>
         <span className="block h-px flex-1 bg-foil/15" />

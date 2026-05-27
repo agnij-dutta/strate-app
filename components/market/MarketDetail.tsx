@@ -15,7 +15,7 @@ import ActionPanel from "./ActionPanel";
 
 export default function MarketDetail({ market }: { market: MarketSummary }) {
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-6 py-10 lg:px-10 lg:py-14">
+    <div className="mx-auto w-full max-w-[1400px] px-5 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-14">
       <div className="mb-6">
         <Link
           href="/markets"

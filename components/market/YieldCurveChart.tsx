@@ -71,7 +71,13 @@ export default function YieldCurveChart({ impliedApy }: { impliedApy: number }) 
         if (nearest.t >= xMin && nearest.t <= xMax) setHover(nearest);
       }}
     >
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        height="auto"
+        preserveAspectRatio="xMidYMid meet"
+        className="block"
+      >
         <defs>
           <linearGradient id="foilArea" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="#C9A961" stopOpacity="0.35" />

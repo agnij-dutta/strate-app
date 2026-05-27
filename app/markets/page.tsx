@@ -36,7 +36,7 @@ export default function MarketsPage() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-6 py-12 lg:px-10 lg:py-16">
+    <div className="mx-auto w-full max-w-[1400px] px-5 py-10 sm:px-6 sm:py-12 lg:px-10 lg:py-16">
       <div className="flex items-baseline gap-4 font-mono text-[10px] uppercase tracking-[0.36em] text-foil/80">
         <span>§ 01</span>
         <span className="block h-px flex-1 bg-foil/15" />
@@ -88,7 +88,7 @@ export default function MarketsPage() {
                 href={`/markets/${m.id}`}
                 className="group block border-b border-parchment/8 transition-colors duration-200 hover:bg-parchment/[0.025]"
               >
-                <div className="grid grid-cols-2 gap-2 px-6 py-5 lg:grid-cols-[2.4fr_1fr_1fr_1fr_1fr_1fr_0.6fr] lg:items-center lg:gap-4">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 px-5 py-4 sm:px-6 sm:py-5 lg:grid-cols-[2.4fr_1fr_1fr_1fr_1fr_1fr_0.6fr] lg:items-center lg:gap-4">
                   <div className="col-span-2 lg:col-span-1">
                     <p className="font-display text-[22px] text-parchment">
                       {m.underlying.symbol}

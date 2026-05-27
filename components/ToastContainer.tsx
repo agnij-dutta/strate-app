@@ -39,7 +39,7 @@ export default function ToastContainer() {
     <div
       aria-live="polite"
       aria-atomic="false"
-      className="pointer-events-none fixed bottom-6 right-6 z-[80] flex w-full max-w-sm flex-col-reverse gap-3"
+      className="pointer-events-none fixed inset-x-4 bottom-4 z-[80] flex flex-col-reverse gap-3 sm:left-auto sm:bottom-6 sm:right-6 sm:w-full sm:max-w-sm"
     >
       <AnimatePresence initial={false}>
         {toasts.map((t) => {

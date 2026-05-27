@@ -19,7 +19,7 @@ export default function ActionPanel({ market }: { market: MarketSummary }) {
   const [active, setActive] = useState<Tab>("mint");
 
   return (
-    <div className="sticky top-24">
+    <div className="lg:sticky lg:top-24">
       <div className="flex items-baseline gap-4 font-mono text-[9.5px] uppercase tracking-[0.36em] text-foil/80">
         <span>§ 04</span>
         <span className="block h-px flex-1 bg-foil/15" />
