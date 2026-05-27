@@ -15,8 +15,8 @@ importers:
         specifier: ^15.1.0
         version: 15.1.0
       '@strate/sdk':
-        specifier: file:/Users/agnijdutta/Desktop/strate-sdk
-        version: file:../strate-sdk(@stellar/freighter-api@6.0.1)(@stellar/stellar-sdk@15.1.0)(@tanstack/react-query@5.100.14(react@18.3.1))(react@18.3.1)
+        specifier: file:./vendor/strate-sdk
+        version: file:vendor/strate-sdk(@stellar/freighter-api@6.0.1)(@stellar/stellar-sdk@15.1.0)(@tanstack/react-query@5.100.14(react@18.3.1))(react@18.3.1)
       '@tanstack/react-query':
         specifier: ^5.100.14
         version: 5.100.14(react@18.3.1)
@@ -250,8 +250,8 @@ packages:
     engines: {node: '>=20.0.0'}
     hasBin: true
 
-  '@strate/sdk@file:../strate-sdk':
-    resolution: {directory: ../strate-sdk, type: directory}
+  '@strate/sdk@file:vendor/strate-sdk':
+    resolution: {directory: vendor/strate-sdk, type: directory}
     peerDependencies:
       '@stellar/freighter-api': ^3.0.0
       '@stellar/stellar-sdk': ^12.0.0
@@ -2147,7 +2147,7 @@ snapshots:
     transitivePeerDependencies:
       - debug
 
-  '@strate/sdk@file:../strate-sdk(@stellar/freighter-api@6.0.1)(@stellar/stellar-sdk@15.1.0)(@tanstack/react-query@5.100.14(react@18.3.1))(react@18.3.1)':
+  '@strate/sdk@file:vendor/strate-sdk(@stellar/freighter-api@6.0.1)(@stellar/stellar-sdk@15.1.0)(@tanstack/react-query@5.100.14(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@stellar/stellar-sdk': 15.1.0
     optionalDependencies:

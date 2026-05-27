@@ -11,7 +11,7 @@
   "dependencies": {
     "@stellar/freighter-api": "^6.0.1",
     "@stellar/stellar-sdk": "^15.1.0",
-    "@strate/sdk": "file:/Users/agnijdutta/Desktop/strate-sdk",
+    "@strate/sdk": "file:./vendor/strate-sdk",
     "@tanstack/react-query": "^5.100.14",
     "@vercel/analytics": "^2.0.1",
     "clsx": "^2.1.1",

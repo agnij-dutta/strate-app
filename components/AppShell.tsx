@@ -4,12 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode } from "react";
 import ConnectButton from "./ConnectButton";
+import ErrorBoundary from "./ErrorBoundary";
+import ToastContainer from "./ToastContainer";
 import TxDrawer from "./TxDrawer";
 import Wordmark from "./Wordmark";
 
 const navItems = [
   { label: "Markets", href: "/markets" },
   { label: "Portfolio", href: "/portfolio" },
+  { label: "History", href: "/history" },
   { label: "Docs", href: "https://docs.usestrate.app", external: true },
 ];
 
@@ -84,9 +87,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="relative z-10 flex-1">{children}</main>
+      <main className="relative z-10 flex-1">
+        <ErrorBoundary>{children}</ErrorBoundary>
+      </main>
 
       <TxDrawer />
+      <ToastContainer />
 
       <footer className="border-t border-parchment/8 bg-ink-deep">
         <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between px-6 py-6 lg:px-10">

@@ -1,8 +1,10 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useTx } from "@/lib/tx/store";
+import { useHistory } from "@/lib/tx/history";
+import { useToast } from "@/lib/toast/store";
 import { useWallet } from "@/lib/wallet/store";
 
 /**
@@ -29,22 +31,80 @@ export default function TxDrawer() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, status.kind, close]);
 
+  // Stable toast id for the duration of this tx so successive state
+  // transitions upsert the same notification instead of stacking.
+  const toastIdRef = useRef<string | null>(null);
+  const toastUpsert = useToast((s) => s.upsert);
+  const toastPush = useToast((s) => s.push);
+  const recordTx = useHistory((s) => s.record);
+
   const onSign = async () => {
     if (status.kind !== "open" && status.kind !== "error") return;
+    const title = status.preview.title;
     setSigning();
+    const tid = toastIdRef.current ?? toastPush({
+      kind: "pending",
+      title,
+      body: "Awaiting wallet signature.",
+    });
+    toastIdRef.current = tid;
+
     try {
       // STUB: until live, simulate the sign + broadcast pipeline so the UI
       // is fully clickable. Replace with adapter.signTransaction(xdr) + RPC
       // submit once contract addresses are live.
       await new Promise((r) => setTimeout(r, 900));
       setBroadcasting();
+      toastUpsert(tid, {
+        kind: "pending",
+        title,
+        body: "Broadcasting to Soroban testnet.",
+      });
       await new Promise((r) => setTimeout(r, 1200));
       const fakeHash =
         "stub" +
         Math.random().toString(36).slice(2).padEnd(60, "0").slice(0, 60);
       setSuccess(fakeHash);
+      toastUpsert(tid, {
+        kind: "success",
+        title,
+        body: "Transaction confirmed on testnet.",
+        action: {
+          label: "View on Stellar Expert",
+          href: `https://stellar.expert/explorer/testnet/tx/${fakeHash}`,
+        },
+        ttl: 8000,
+      });
+      recordTx({
+        hash: fakeHash,
+        action: status.preview.action,
+        title,
+        network: "testnet",
+        walletAddress: wallet.address,
+        rows: status.preview.rows.map((r) => ({ label: r.label, value: r.value })),
+        status: "success",
+      });
+      toastIdRef.current = null;
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      toastUpsert(tid, {
+        kind: "error",
+        title,
+        body: message,
+        ttl: 7000,
+      });
+      recordTx({
+        hash: "",
+        action: status.preview.action,
+        title,
+        network: "testnet",
+        walletAddress: wallet.address,
+        rows: status.preview.rows.map((r) => ({ label: r.label, value: r.value })),
+        status: "error",
+        errorMessage: message,
+      });
+      toastIdRef.current = null;
     }
   };
 
