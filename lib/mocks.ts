@@ -1,10 +1,16 @@
 /**
- * Mock data layer used until protocol contracts are deployed to testnet.
- * Every shape mirrors the SDK types so the swap to live data is a one-line
- * change at the call site.
+ * Market data layer. The XLM-2026-08 entry is **live on Soroban testnet**
+ * (deployed 2026-05-31) — its addresses come from lib/addresses.ts.
+ * The remaining entries are illustrative cards for issuers cited in the
+ * Mirror article; they have no contracts behind them yet.
+ *
+ * To make a market real:
+ *   1. Add its addresses to lib/addresses.ts under TESTNET.markets
+ *   2. Set isLive: true and contracts: <addresses> on its entry below
  */
 
 import type { MarketView, UserPosition, YieldCurvePoint } from "@strate/sdk";
+import { TESTNET } from "./addresses";
 
 export type MarketSummary = {
   id: string;
@@ -15,16 +21,49 @@ export type MarketSummary = {
   ytPrice: number;
   tvl: number; // USD
   status: "live" | "paused" | "expiring";
+  /** True only when contracts are deployed and addresses are wired below. */
+  isLive: boolean;
+  /** Per-market contract handles. Present on isLive markets only. */
+  contracts?: {
+    oracle: string;
+    pt: string;
+    yt: string;
+    yieldStripping: string;
+    amm: string;
+    underlying: string;
+  };
 };
 
 const day = 86400;
 const now = Math.floor(Date.now() / 1000);
 
-// Three reference markets that match the issuers we cite in the Mirror article.
-// The bUSDC market is "live" because Blend is the only issuer with a live
-// integration path on testnet today. CETES and BENJI are stubs for the
-// allocator-facing surface.
+const xlm = TESTNET.markets.find((m) => m.id === "xlm-2026-08");
+if (!xlm) throw new Error("TESTNET.markets is missing xlm-2026-08");
+
+// Markets surface. Live first, illustrative cards next.
 export const MOCK_MARKETS: MarketSummary[] = [
+  {
+    id: xlm.id,
+    underlying: {
+      symbol: xlm.underlying.symbol,
+      issuer: xlm.underlying.issuer,
+    },
+    maturity: xlm.maturity,
+    impliedApy: 0.0521,
+    ptPrice: 0.9612,
+    ytPrice: 0.0388,
+    tvl: 0,
+    status: xlm.status,
+    isLive: true,
+    contracts: {
+      oracle: xlm.oracle,
+      pt: xlm.pt,
+      yt: xlm.yt,
+      yieldStripping: xlm.yieldStripping,
+      amm: xlm.amm,
+      underlying: xlm.underlying.address,
+    },
+  },
   {
     id: "busdc-2026-12",
     underlying: { symbol: "bUSDC", issuer: "Blend" },
@@ -34,6 +73,7 @@ export const MOCK_MARKETS: MarketSummary[] = [
     ytPrice: 0.0488,
     tvl: 1_240_000,
     status: "live",
+    isLive: false,
   },
   {
     id: "cetes-2026-09",
@@ -44,6 +84,7 @@ export const MOCK_MARKETS: MarketSummary[] = [
     ytPrice: 0.0345,
     tvl: 480_000,
     status: "live",
+    isLive: false,
   },
   {
     id: "benji-2027-03",
@@ -54,6 +95,7 @@ export const MOCK_MARKETS: MarketSummary[] = [
     ytPrice: 0.0457,
     tvl: 0,
     status: "paused",
+    isLive: false,
   },
 ];
 

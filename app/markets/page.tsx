@@ -90,9 +90,17 @@ export default function MarketsPage() {
               >
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 px-5 py-4 sm:px-6 sm:py-5 lg:grid-cols-[2.4fr_1fr_1fr_1fr_1fr_1fr_0.6fr] lg:items-center lg:gap-4">
                   <div className="col-span-2 lg:col-span-1">
-                    <p className="font-display text-[22px] text-parchment">
-                      {m.underlying.symbol}
-                    </p>
+                    <div className="flex items-baseline gap-2.5">
+                      <p className="font-display text-[22px] text-parchment">
+                        {m.underlying.symbol}
+                      </p>
+                      {m.isLive && (
+                        <span className="inline-flex items-center gap-1.5 border border-bid/40 bg-bid/[0.08] px-1.5 py-0.5 font-mono text-[8.5px] uppercase tracking-[0.28em] text-bid">
+                          <span aria-hidden="true" className="block h-1 w-1 bg-bid" />
+                          Live
+                        </span>
+                      )}
+                    </div>
                     <p
                       className="text-[12px] italic text-parchment/55"
                       style={{ fontFamily: "var(--font-fraunces), serif" }}
