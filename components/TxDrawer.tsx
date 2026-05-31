@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef } from "react";
 import { useTx } from "@/lib/tx/store";
+import { executeTx } from "@/lib/tx/build";
 import { useHistory } from "@/lib/tx/history";
 import { useToast } from "@/lib/toast/store";
 import { useWallet } from "@/lib/wallet/store";
@@ -50,33 +51,64 @@ export default function TxDrawer() {
     toastIdRef.current = tid;
 
     try {
-      // STUB: until live, simulate the sign + broadcast pipeline so the UI
-      // is fully clickable. Replace with adapter.signTransaction(xdr) + RPC
-      // submit once contract addresses are live.
-      await new Promise((r) => setTimeout(r, 900));
-      setBroadcasting();
-      toastUpsert(tid, {
-        kind: "pending",
-        title,
-        body: "Broadcasting to Soroban testnet.",
-      });
-      await new Promise((r) => setTimeout(r, 1200));
-      const fakeHash =
-        "stub" +
-        Math.random().toString(36).slice(2).padEnd(60, "0").slice(0, 60);
-      setSuccess(fakeHash);
+      let hash: string;
+      const hasParams = !!status.preview.params;
+
+      if (hasParams && wallet.address) {
+        // Real Soroban pipeline: build → sign via wallet kit → RPC submit
+        // → poll getTransaction. The drawer's `signing` and `broadcasting`
+        // states aren't visited individually here because executeTx is
+        // a single awaitable; we leave the toast on "pending" through both
+        // and flip the drawer state in one step.
+        toastUpsert(tid, {
+          kind: "pending",
+          title,
+          body: "Awaiting wallet signature.",
+        });
+        setBroadcasting();
+        // Slight delay so the user sees the signing state before the
+        // wallet popup steals focus.
+        await Promise.resolve();
+        hash = await executeTx(status.preview.params!, wallet.address);
+        toastUpsert(tid, {
+          kind: "pending",
+          title,
+          body: "Broadcasting to Soroban testnet.",
+        });
+      } else {
+        // Simulated path — used for non-live markets and YT swap directions
+        // (no SDK builder yet). Identical UX to the real path but no
+        // signature or RPC traffic.
+        await new Promise((r) => setTimeout(r, 900));
+        setBroadcasting();
+        toastUpsert(tid, {
+          kind: "pending",
+          title,
+          body: "Broadcasting (simulated · no contracts wired for this market)",
+        });
+        await new Promise((r) => setTimeout(r, 1200));
+        hash =
+          "stub" +
+          Math.random().toString(36).slice(2).padEnd(60, "0").slice(0, 60);
+      }
+
+      setSuccess(hash);
       toastUpsert(tid, {
         kind: "success",
         title,
-        body: "Transaction confirmed on testnet.",
-        action: {
-          label: "View on Stellar Expert",
-          href: `https://stellar.expert/explorer/testnet/tx/${fakeHash}`,
-        },
+        body: hasParams
+          ? "Transaction confirmed on testnet."
+          : "Simulated transaction recorded.",
+        action: hasParams
+          ? {
+              label: "View on Stellar Expert",
+              href: `https://stellar.expert/explorer/testnet/tx/${hash}`,
+            }
+          : undefined,
         ttl: 8000,
       });
       recordTx({
-        hash: fakeHash,
+        hash,
         action: status.preview.action,
         title,
         network: "testnet",

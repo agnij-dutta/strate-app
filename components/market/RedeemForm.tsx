@@ -3,10 +3,13 @@
 import { useState } from "react";
 import type { MarketSummary } from "@/lib/mocks";
 import { useTx } from "@/lib/tx/store";
+import { toUnits } from "@/lib/tx/build";
 import { useWallet } from "@/lib/wallet/store";
 import { fmtMaturityDate } from "@/lib/format";
 import AmountInput from "./AmountInput";
 import PrimaryButton from "./PrimaryButton";
+
+const PT_DECIMALS = 7;
 
 export default function RedeemForm({ market }: { market: MarketSummary }) {
   const [amount, setAmount] = useState("");
@@ -23,6 +26,16 @@ export default function RedeemForm({ market }: { market: MarketSummary }) {
   const underlyingOut = value;
 
   const onSubmit = () => {
+    const params =
+      market.isLive && market.contracts
+        ? ({
+            kind: "redeem" as const,
+            market: market.contracts.yieldStripping,
+            ptAmount: toUnits(amount, PT_DECIMALS),
+            atMaturity: matured,
+          })
+        : undefined;
+
     tx.open({
       action: "redeem",
       title: matured
@@ -50,6 +63,7 @@ export default function RedeemForm({ market }: { market: MarketSummary }) {
       copy: matured
         ? "Post-maturity redemption uses the PT side only. YT is worthless after maturity by design."
         : "Pre-maturity redemption requires matched PT and YT amounts. To redeem only PT, sell your YT on the AMM first.",
+      params,
     });
   };
 

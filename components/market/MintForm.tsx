@@ -3,10 +3,13 @@
 import { useState } from "react";
 import type { MarketSummary } from "@/lib/mocks";
 import { useTx } from "@/lib/tx/store";
+import { toUnits } from "@/lib/tx/build";
 import { useWallet } from "@/lib/wallet/store";
 import { fmtApy, fmtPrice } from "@/lib/format";
 import AmountInput from "./AmountInput";
 import PrimaryButton from "./PrimaryButton";
+
+const UNDERLYING_DECIMALS = 7;
 
 export default function MintForm({ market }: { market: MarketSummary }) {
   const [amount, setAmount] = useState("");
@@ -23,6 +26,17 @@ export default function MintForm({ market }: { market: MarketSummary }) {
   const isValid = value > 0;
 
   const onSubmit = () => {
+    // Real params iff the market is live AND we have a connected wallet.
+    // Otherwise the drawer falls back to the simulated round-trip.
+    const params =
+      market.isLive && market.contracts
+        ? ({
+            kind: "mint" as const,
+            market: market.contracts.yieldStripping,
+            underlyingAmount: toUnits(amount, UNDERLYING_DECIMALS),
+          })
+        : undefined;
+
     tx.open({
       action: "mint",
       title: `Mint PT + YT against ${market.underlying.symbol}`,
@@ -35,6 +49,7 @@ export default function MintForm({ market }: { market: MarketSummary }) {
       ],
       copy:
         "Mint is reversible by redeeming the matched PT + YT pair before maturity. At maturity the PT alone redeems 1:1 with underlying.",
+      params,
     });
   };
 

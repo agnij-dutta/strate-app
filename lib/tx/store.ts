@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import type { TxParams } from "./build";
 
 export type TxAction = "mint" | "redeem" | "swap" | "claim";
 
@@ -15,6 +16,13 @@ export interface TxPreview {
   warning?: string;
   /** Plain-language disclosure. */
   copy?: string;
+  /**
+   * Structured params for executing the tx. When present, the drawer signs
+   * + submits a real Soroban transaction. When omitted the drawer falls
+   * back to the simulated round-trip — used for non-live markets or YT
+   * swap directions the SDK doesn't ship a builder for yet.
+   */
+  params?: TxParams;
 }
 
 type Status =

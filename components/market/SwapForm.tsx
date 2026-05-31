@@ -3,10 +3,13 @@
 import { useState } from "react";
 import type { MarketSummary } from "@/lib/mocks";
 import { useTx } from "@/lib/tx/store";
+import { toUnits } from "@/lib/tx/build";
 import { useWallet } from "@/lib/wallet/store";
 import { fmtApy, fmtPrice } from "@/lib/format";
 import AmountInput from "./AmountInput";
 import PrimaryButton from "./PrimaryButton";
+
+const TOKEN_DECIMALS = 7;
 
 type Direction = "buy-pt" | "sell-pt" | "buy-yt" | "sell-yt";
 
@@ -60,6 +63,20 @@ export default function SwapForm({ market }: { market: MarketSummary }) {
   const minOut = out * (1 - slippageBps / 10_000);
 
   const onSubmit = () => {
+    // The AMM only routes PT ↔ underlying. YT directions fall back to the
+    // simulated path until a YT swap builder lands in the SDK.
+    const isPtRoute = direction === "buy-pt" || direction === "sell-pt";
+    const params =
+      market.isLive && market.contracts && isPtRoute
+        ? ({
+            kind: "swap" as const,
+            amm: market.contracts.amm,
+            tokenIn: direction === "buy-pt" ? ("UNDERLYING" as const) : ("PT" as const),
+            amountIn: toUnits(amount, TOKEN_DECIMALS),
+            minAmountOut: BigInt(Math.floor(minOut * 10 ** TOKEN_DECIMALS)),
+          })
+        : undefined;
+
     tx.open({
       action: "swap",
       title: `${DIRECTIONS.find((d) => d.id === direction)?.label} on ${market.underlying.symbol}`,
@@ -73,8 +90,11 @@ export default function SwapForm({ market }: { market: MarketSummary }) {
       warning:
         out / value < 0.5 || out / value > 2
           ? "Large move against pool depth. Confirm trade size against AMM liquidity."
-          : undefined,
+          : !isPtRoute && market.isLive
+            ? "YT directions are not yet routed on-chain; this preview will record as a simulated transaction."
+            : undefined,
       copy: "Swap routes through the time-decaying AMM curve. Slippage tightens as maturity approaches.",
+      params,
     });
   };
 
