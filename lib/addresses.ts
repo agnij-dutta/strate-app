@@ -40,7 +40,9 @@ export const TESTNET: NetworkAddresses = {
   rpcUrl: "https://soroban-testnet.stellar.org",
   passphrase: "Test SDF Network ; September 2015",
   explorer: "https://stellar.expert/explorer/testnet",
-  factory: null,
+  // Factory deployed 2026-06-01 after the strate-types refactor unblocked
+  // the wasm32 build. Markets can now be created via factory.deploy_market.
+  factory: "CDVQN2JWB34LRXM2C44N34CYPZKTLOQ77FPGXKBOHUWMLIURFEXNMQRU",
   markets: [
     {
       // Redeployed 2026-06-01 against a real (deployable) mock Blend pool
@@ -61,6 +63,24 @@ export const TESTNET: NetworkAddresses = {
       yieldStripping: "CBGFES4EV36QBPLRYNMZZDAJDGC7QNXBHW3XZNN35GNWFG3T6YVI6SS7",
       amm: "CAJXHXMAH44MXCMA2ILPS7TK55FNWRD7F5ILNKPZJM6EZDSRCRVLAO2L",
       maturity: 1788081701,
+      status: "live",
+    },
+    {
+      // Deployed via Factory.deploy_market on 2026-06-01 — the first
+      // market created by the factory rather than hand-wired.
+      id: "xlm-2026-11",
+      label: "XLM-2026-11",
+      underlying: {
+        symbol: "XLM",
+        issuer: "Stellar (native SAC)",
+        address: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+      },
+      oracle: "CCNKCM76YA6KO3WL23HR2MM2KFQLZIMFBAMHDVS6XA2RLHPZDRMGSAAB",
+      pt: "CAEMICU4MLAAQXZMVYABLNJDWQRIEVK7KZQ33VBQENLBLDTX6KLD6AT4",
+      yt: "CC5HUC635C6JOI6IRLES45JOB2LPSRKBC345F4X2WKZ6G3PDCHVR73SG",
+      yieldStripping: "CDGGSFEQK6Q2M573NOZ6BSRML4AT34BPUUSXCV6IEII6SO3GQO4OAOOG",
+      amm: "CA4EUITWVZQOT7QHE76F4PDYTDRL2YSZPPYD5MNSD7CNMGPHU476OZ7N",
+      maturity: 1795871716,
       status: "live",
     },
   ],

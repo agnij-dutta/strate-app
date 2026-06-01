@@ -37,33 +37,38 @@ export type MarketSummary = {
 const day = 86400;
 const now = Math.floor(Date.now() / 1000);
 
-const xlm = TESTNET.markets.find((m) => m.id === "xlm-2026-08");
-if (!xlm) throw new Error("TESTNET.markets is missing xlm-2026-08");
+// Hard-coded display values (price + APY) that match the current chart
+// stub. Keep these in lock-step with the chart until the SDK can read
+// live AMM state.
+const LIVE_DISPLAY_DEFAULTS = {
+  impliedApy: 0.0521,
+  ptPrice: 0.9612,
+  ytPrice: 0.0388,
+  tvl: 0,
+};
 
-// Markets surface. Live first, illustrative cards next.
-export const MOCK_MARKETS: MarketSummary[] = [
-  {
-    id: xlm.id,
-    underlying: {
-      symbol: xlm.underlying.symbol,
-      issuer: xlm.underlying.issuer,
-    },
-    maturity: xlm.maturity,
-    impliedApy: 0.0521,
-    ptPrice: 0.9612,
-    ytPrice: 0.0388,
-    tvl: 0,
-    status: xlm.status,
-    isLive: true,
-    contracts: {
-      oracle: xlm.oracle,
-      pt: xlm.pt,
-      yt: xlm.yt,
-      yieldStripping: xlm.yieldStripping,
-      amm: xlm.amm,
-      underlying: xlm.underlying.address,
-    },
+// Markets surface. Live entries are derived from TESTNET.markets so a
+// factory-deployed market appears in the dApp by appending one entry to
+// lib/addresses.ts. Illustrative cards (bUSDC/CETES/BENJI) follow.
+const liveMarkets: MarketSummary[] = TESTNET.markets.map((m) => ({
+  id: m.id,
+  underlying: { symbol: m.underlying.symbol, issuer: m.underlying.issuer },
+  maturity: m.maturity,
+  ...LIVE_DISPLAY_DEFAULTS,
+  status: m.status,
+  isLive: true,
+  contracts: {
+    oracle: m.oracle,
+    pt: m.pt,
+    yt: m.yt,
+    yieldStripping: m.yieldStripping,
+    amm: m.amm,
+    underlying: m.underlying.address,
   },
+}));
+
+export const MOCK_MARKETS: MarketSummary[] = [
+  ...liveMarkets,
   {
     id: "busdc-2026-12",
     underlying: { symbol: "bUSDC", issuer: "Blend" },
