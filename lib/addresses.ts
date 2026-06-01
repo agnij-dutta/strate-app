@@ -43,6 +43,11 @@ export const TESTNET: NetworkAddresses = {
   factory: null,
   markets: [
     {
+      // Redeployed 2026-06-01 against a real (deployable) mock Blend pool
+      // at CDH5TUDZ...JOES. The first deploy used a placeholder G-address
+      // for blend_pool which made every sync_rate fail. Since Oracle, YS,
+      // and AMM all immutably bind to their peers at construction, fixing
+      // it required a full fresh market deploy.
       id: "xlm-2026-08",
       label: "XLM-2026-08",
       underlying: {
@@ -50,12 +55,12 @@ export const TESTNET: NetworkAddresses = {
         issuer: "Stellar (native SAC)",
         address: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
       },
-      oracle: "CAS4UNLV2MVRRMZGYSRX76Q3L64KVYZP54FPOXCD4JTKT6RW5SWR5BTX",
-      pt: "CBW5G34G2BVVGHUOUM3EATQ24HZTJDOL2L2ZQL4SXKFNL6K4OJC2OALQ",
-      yt: "CDY6GHX6QTXVBW2HZOP6PNU734P5XNC5NXW26H3ADXYPLR7KLABRRHNU",
-      yieldStripping: "CAMLQV6XY5LPMILUIMHIYOONDS2PZ4YQQ54UITGS7BFCBR5V6QZGACMZ",
-      amm: "CCKXOP4CIGAH7IEUS3FJYVYBNJTARM4G75T2K2KWAXBP2UTBH35647QU",
-      maturity: 1787984043,
+      oracle: "CBNKJPM7PO4S747EH56UMNC47MR6HTLNHHOK6CGFTXNVTVW6NB67IMYB",
+      pt: "CAPA4XMPYH7FOXBASMKQPF7KHQORHEN3333ZN36AT2WKGMVYV5PKD2UG",
+      yt: "CDQ5PIMKUCOICJR225SY52SDNCQLOBQZVHAFYMWH3GURYQLETAZ2VYKQ",
+      yieldStripping: "CBGFES4EV36QBPLRYNMZZDAJDGC7QNXBHW3XZNN35GNWFG3T6YVI6SS7",
+      amm: "CAJXHXMAH44MXCMA2ILPS7TK55FNWRD7F5ILNKPZJM6EZDSRCRVLAO2L",
+      maturity: 1788081701,
       status: "live",
     },
   ],
