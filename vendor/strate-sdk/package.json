@@ -1,6 +1,6 @@
 {
   "name": "@strate/sdk",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "description": "Off-chain TypeScript SDK for Strate, a Pendle-style yield-stripping protocol on Stellar Soroban.",
   "type": "module",
   "main": "./dist/index.js",

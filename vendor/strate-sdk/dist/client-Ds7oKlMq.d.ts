@@ -27,27 +27,53 @@ declare const HALF_WAD: bigint;
 /** Underlying token decimals for Blend bUSDC. */
 declare const UNDERLYING_DECIMALS = 7;
 /**
- * Market configuration as returned by the YieldStripping contract.
- * Maturity is a unix timestamp (seconds).
+ * Market configuration as returned by the YieldStripping contract's
+ * `config()` getter. Maturity is a unix timestamp (seconds).
+ *
+ * The AMM is NOT in YS's config: AMM and YS are independent peers wired
+ * by the Factory. Look up the AMM (and all other market handles) via
+ * the Factory's `get_market_meta(ys)` — see `MarketMeta` below.
  */
 interface MarketConfig {
     underlying: Address;
     pt: Address;
     yt: Address;
-    amm: Address;
     oracle: Address;
     /** Unix seconds at which PT redeems 1:1 with underlying. */
     maturity: number;
     /** WAD-scaled scalar root used by the AMM curve. */
     scalarRoot: bigint;
+    /** Single admin address authorized to pause / unpause. */
+    admin: Address;
+}
+/**
+ * Factory's view of a deployed market. This is the authoritative record
+ * for joining YS to its AMM peer. Returned by Factory::get_market_meta.
+ */
+interface MarketMeta {
+    pt: Address;
+    yt: Address;
+    amm: Address;
+    oracle: Address;
+    yieldStripping: Address;
+    underlying: Address;
+    maturity: number;
+    scalarRoot: bigint;
+    feeBps: number;
+    blendPool: Address;
+    deployedAt: number;
+    deployer: Address;
 }
 /** A user's current position in a single market. */
 interface UserPosition {
     ptBalance: bigint;
     ytBalance: bigint;
-    /** Underlying-denominated yield accrued so far. */
+    /** Underlying-denominated yield accrued so far. Equal to `pending_yield`
+     *  on the contract since H-01 collapsed accrued/claimable into one
+     *  push-topology value. */
     accruedYield: bigint;
-    /** Subset of accruedYield that can be claimed right now. */
+    /** Same as `accruedYield` — kept for source-compat with older callers.
+     *  Will be removed in 0.3. */
     claimableYield: bigint;
 }
 /** A single point on the implied-APY / PT-price curve. */
@@ -59,8 +85,16 @@ interface YieldCurvePoint {
     /** WAD-scaled PT price in underlying terms (e.g. 0.95e18 = 0.95). */
     ptPrice: bigint;
 }
-/** Market state + live supply / reserve numbers (one read). */
+/** Market state + live supply / reserve numbers (one read).
+ *
+ *  `totalSupply` is YT.total_supply (= PT.total_supply by construction).
+ *  YS does NOT track its own supply since H-01 — PT/YT do.
+ *  `amm` is supplied by the caller (typically resolved from the factory)
+ *  because YS doesn't store it; passing it through keeps `MarketView`
+ *  self-sufficient for downstream UI code.
+ */
 interface MarketView extends MarketConfig {
+    amm: Address;
     totalSupply: bigint;
     reserves: {
         pt: bigint;
@@ -145,7 +179,25 @@ declare class StrateClient {
         minLpOut: bigint;
         source: Account;
     }): Promise<Transaction>;
-    readMarket(market: Address | string): Promise<MarketView>;
+    buildSyncYieldIndex(params: {
+        market: Address | string;
+        source: Account;
+    }): Promise<Transaction>;
+    /**
+     * Load full market view (config + supply + reserves). Resolves the
+     * AMM peer via the factory when not provided.
+     */
+    readMarket(market: Address | string, opts?: {
+        amm?: Address | string;
+    }): Promise<MarketView>;
+    /** Enumerate every market the factory knows about. */
+    listMarkets(): Promise<MarketMeta[]>;
+    readMarketCount(): Promise<number>;
+    readMarketMeta(ys: Address | string): Promise<MarketMeta | null>;
+    readCurrentIndex(market: Address | string): Promise<bigint>;
+    readPendingYield(market: Address | string, user: Address | string): Promise<bigint>;
+    readIsPaused(market: Address | string): Promise<boolean>;
+    readGlobalYieldIndex(yt: Address | string): Promise<bigint>;
     readUserPosition(market: Address | string, user: Address | string): Promise<UserPosition>;
     readImpliedApy(market: Address | string): Promise<bigint>;
     readPtPrice(market: Address | string): Promise<bigint>;
@@ -153,4 +205,4 @@ declare class StrateClient {
     readBlendExchangeRate(blendPool: Address | string): Promise<bigint>;
 }
 
-export { type Address as A, type BuildSwapTxParams as B, HALF_WAD as H, type MarketConfig as M, Network as N, StrateClient as S, UNDERLYING_DECIMALS as U, WAD as W, type YieldCurvePoint as Y, type MarketView as a, type StrateClientOptions as b, type SwapDirection as c, type UserPosition as d, asAddress as e, buildSwapTx as f, i128ToString as g, isAddress as h, i128FromString as i, numberToWad as n, wadToNumber as w };
+export { type Address as A, type BuildSwapTxParams as B, HALF_WAD as H, type MarketConfig as M, Network as N, StrateClient as S, UNDERLYING_DECIMALS as U, WAD as W, type YieldCurvePoint as Y, type MarketMeta as a, type MarketView as b, type StrateClientOptions as c, type SwapDirection as d, type UserPosition as e, asAddress as f, buildSwapTx as g, i128ToString as h, i128FromString as i, isAddress as j, numberToWad as n, wadToNumber as w };
