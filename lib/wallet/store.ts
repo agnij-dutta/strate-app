@@ -2,12 +2,14 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import {
-  connectWallet,
-  disconnectWallet,
-  initWalletKit,
-  type WalletId,
-} from "./kit";
+import type { WalletId } from "./kit-meta";
+
+// All kit operations are dynamic-imported so the wallet adapter bundle
+// (~200 KB across four modules) lands in its own chunk and never
+// touches the initial page load.
+async function kit() {
+  return import("./kit");
+}
 
 type Status = "disconnected" | "connecting" | "connected" | "error";
 
@@ -37,6 +39,7 @@ export const useWallet = create<WalletState>()(
       connect: async (id) => {
         set({ status: "connecting", error: null, walletId: id });
         try {
+          const { connectWallet } = await kit();
           const address = await connectWallet(id);
           set({ status: "connected", address, walletId: id });
         } catch (err) {
@@ -51,6 +54,7 @@ export const useWallet = create<WalletState>()(
 
       disconnect: async () => {
         try {
+          const { disconnectWallet } = await kit();
           await disconnectWallet();
         } catch {
           // Disconnect failures are non-fatal; we clear local state regardless.
@@ -67,8 +71,9 @@ export const useWallet = create<WalletState>()(
         const { walletId } = get();
         if (!walletId) return;
         if (typeof window === "undefined") return;
-        initWalletKit();
         try {
+          const { initWalletKit, connectWallet } = await kit();
+          initWalletKit();
           const address = await connectWallet(walletId);
           set({ status: "connected", address });
         } catch {

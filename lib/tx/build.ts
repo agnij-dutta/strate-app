@@ -3,7 +3,6 @@
 import { asAddress } from "@strate/sdk";
 import { getStrateClient } from "@/lib/client";
 import { ACTIVE } from "@/lib/addresses";
-import { signXdr } from "@/lib/wallet/kit";
 
 /**
  * Structured parameters for a transaction the drawer is about to submit.
@@ -138,6 +137,9 @@ export async function executeTx(
       break;
   }
 
+  // Dynamic-import the wallet kit so its bundle (~200 KB) only loads when
+  // the user actually submits a transaction, not on initial page render.
+  const { signXdr } = await import("@/lib/wallet/kit");
   const signed = await signXdr(unsigned.toXDR(), {
     networkPassphrase: ACTIVE.passphrase,
   });

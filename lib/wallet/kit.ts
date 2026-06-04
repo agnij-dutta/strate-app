@@ -21,11 +21,18 @@ import {
   LobstrModule,
   LOBSTR_ID,
 } from "@creit.tech/stellar-wallets-kit/modules/lobstr";
+import type { WalletId } from "./kit-meta";
 
 /**
  * Initialise StellarWalletsKit once per page lifetime with the four
  * adapters we support. The kit is a singleton static class internally,
  * so we just guard against double-init in dev/HMR.
+ *
+ * This module is intentionally heavy (~200 KB of wallet adapter code).
+ * Top-level consumers MUST import only the type-only re-export below or
+ * pull display metadata from `./kit-meta`. Anything that needs runtime
+ * behaviour must dynamic-import this file so the wallet bundle lands in
+ * its own chunk.
  */
 let inited = false;
 export function initWalletKit() {
@@ -49,26 +56,7 @@ export const WALLET_IDS = {
   lobstr: LOBSTR_ID,
 } as const;
 
-export type WalletId = keyof typeof WALLET_IDS;
-
-export const WALLET_DISPLAY: Record<WalletId, { name: string; tagline: string }> = {
-  freighter: {
-    name: "Freighter",
-    tagline: "Browser extension by SDF. The default.",
-  },
-  xbull: {
-    name: "xBull",
-    tagline: "Browser extension + mobile. Multi-account.",
-  },
-  albedo: {
-    name: "Albedo",
-    tagline: "Web-based. No install needed.",
-  },
-  lobstr: {
-    name: "Lobstr Signer",
-    tagline: "Mobile wallet. Read-only sessions.",
-  },
-};
+export type { WalletId };
 
 /** Returns the list of wallets the kit reports as available (installed). */
 export async function listSupportedWallets(): Promise<ISupportedWallet[]> {
