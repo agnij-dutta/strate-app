@@ -3,18 +3,24 @@
 import { useState } from "react";
 import type { MarketSummary } from "@/lib/mocks";
 import { useTx } from "@/lib/tx/store";
+import { toUnits } from "@/lib/tx/build";
 import { useWallet } from "@/lib/wallet/store";
 import { fmtApy, fmtPrice } from "@/lib/format";
 import AmountInput from "./AmountInput";
 import PrimaryButton from "./PrimaryButton";
 
+const TOKEN_DECIMALS = 7;
+
 type Direction = "buy-pt" | "sell-pt" | "buy-yt" | "sell-yt";
 
-const DIRECTIONS: { id: Direction; label: string; pair: string }[] = [
-  { id: "buy-pt", label: "Buy PT", pair: "U → PT" },
-  { id: "sell-pt", label: "Sell PT", pair: "PT → U" },
-  { id: "buy-yt", label: "Buy YT", pair: "U → YT" },
-  { id: "sell-yt", label: "Sell YT", pair: "YT → U" },
+// YT directions route through a second-leg helper that isn't shipped on the
+// testnet AMM yet. We render them disabled with an explanation so users
+// can see the full surface without hitting a dead end.
+const DIRECTIONS: { id: Direction; label: string; pair: string; live: boolean }[] = [
+  { id: "buy-pt", label: "Buy PT", pair: "U → PT", live: true },
+  { id: "sell-pt", label: "Sell PT", pair: "PT → U", live: true },
+  { id: "buy-yt", label: "Buy YT", pair: "U → YT", live: false },
+  { id: "sell-yt", label: "Sell YT", pair: "YT → U", live: false },
 ];
 
 export default function SwapForm({ market }: { market: MarketSummary }) {
@@ -60,6 +66,20 @@ export default function SwapForm({ market }: { market: MarketSummary }) {
   const minOut = out * (1 - slippageBps / 10_000);
 
   const onSubmit = () => {
+    // The AMM only routes PT ↔ underlying. YT directions fall back to the
+    // simulated path until a YT swap builder lands in the SDK.
+    const isPtRoute = direction === "buy-pt" || direction === "sell-pt";
+    const params =
+      market.isLive && market.contracts && isPtRoute
+        ? ({
+            kind: "swap" as const,
+            amm: market.contracts.amm,
+            tokenIn: direction === "buy-pt" ? ("UNDERLYING" as const) : ("PT" as const),
+            amountIn: toUnits(amount, TOKEN_DECIMALS),
+            minAmountOut: BigInt(Math.floor(minOut * 10 ** TOKEN_DECIMALS)),
+          })
+        : undefined;
+
     tx.open({
       action: "swap",
       title: `${DIRECTIONS.find((d) => d.id === direction)?.label} on ${market.underlying.symbol}`,
@@ -73,30 +93,49 @@ export default function SwapForm({ market }: { market: MarketSummary }) {
       warning:
         out / value < 0.5 || out / value > 2
           ? "Large move against pool depth. Confirm trade size against AMM liquidity."
-          : undefined,
+          : !isPtRoute && market.isLive
+            ? "YT directions are not yet routed on-chain; this preview will record as a simulated transaction."
+            : undefined,
       copy: "Swap routes through the time-decaying AMM curve. Slippage tightens as maturity approaches.",
+      params,
     });
   };
 
   return (
     <div className="space-y-5">
       <div role="tablist" aria-label="Swap direction" className="grid grid-cols-4 gap-1.5">
-        {DIRECTIONS.map((d) => (
-          <button
-            key={d.id}
-            role="tab"
-            aria-selected={direction === d.id}
-            onClick={() => setDirection(d.id)}
-            className={`h-9 border font-mono text-[10px] uppercase tracking-[0.24em] transition-colors duration-200 ${
-              direction === d.id
-                ? "border-foil/70 bg-foil/[0.08] text-foil"
-                : "border-parchment/12 bg-parchment/[0.02] text-parchment/55 hover:border-parchment/30 hover:text-parchment"
-            }`}
-            style={{ borderRadius: 2 }}
-          >
-            {d.label}
-          </button>
-        ))}
+        {DIRECTIONS.map((d) => {
+          const disabled = market.isLive && !d.live;
+          return (
+            <button
+              key={d.id}
+              role="tab"
+              aria-selected={direction === d.id}
+              disabled={disabled}
+              title={
+                disabled
+                  ? "YT routes ship after the next AMM pass — PT ↔ U only on testnet."
+                  : undefined
+              }
+              onClick={() => !disabled && setDirection(d.id)}
+              className={`h-9 border font-mono text-[10px] uppercase tracking-[0.24em] transition-colors duration-200 ${
+                disabled
+                  ? "cursor-not-allowed border-parchment/8 bg-parchment/[0.01] text-parchment/25"
+                  : direction === d.id
+                    ? "border-foil/70 bg-foil/[0.08] text-foil"
+                    : "border-parchment/12 bg-parchment/[0.02] text-parchment/55 hover:border-parchment/30 hover:text-parchment"
+              }`}
+              style={{ borderRadius: 2 }}
+            >
+              {d.label}
+              {disabled && (
+                <span className="ml-1.5 text-[8px] tracking-[0.2em] text-parchment/30">
+                  SOON
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       <AmountInput

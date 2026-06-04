@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { listSupportedWallets, WALLET_DISPLAY, type WalletId } from "@/lib/wallet/kit";
+import { WALLET_DISPLAY, type WalletId } from "@/lib/wallet/kit-meta";
 import { useWallet } from "@/lib/wallet/store";
 
 type Props = {
@@ -28,7 +28,10 @@ export default function WalletPicker({ open, onClose }: Props) {
     if (!open) return;
     let cancelled = false;
     setLoading(true);
-    listSupportedWallets()
+    // Dynamic-import the wallet kit on first picker open so the ~200 KB
+    // adapter bundle stays out of the initial JS payload.
+    import("@/lib/wallet/kit")
+      .then(({ listSupportedWallets }) => listSupportedWallets())
       .then((supported) => {
         if (cancelled) return;
         const byId = new Map(supported.map((s) => [s.id as WalletId, s]));

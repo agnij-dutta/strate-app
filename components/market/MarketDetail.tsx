@@ -10,10 +10,16 @@ import {
   fmtTimeToMaturity,
   fmtUsd,
 } from "@/lib/format";
+import { useLiveMarketState } from "@/lib/hooks/use-live-market-state";
 import YieldCurveChart from "./YieldCurveChart";
 import ActionPanel from "./ActionPanel";
 
 export default function MarketDetail({ market }: { market: MarketSummary }) {
+  const live = useLiveMarketState(market.contracts?.yieldStripping);
+  const impliedApy = live.impliedApy ?? market.impliedApy;
+  const ptPrice = live.ptPrice ?? market.ptPrice;
+  const ytPrice = live.ytPrice ?? market.ytPrice;
+
   return (
     <div className="mx-auto w-full max-w-[1400px] px-5 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-14">
       <div className="mb-6">
@@ -67,13 +73,60 @@ export default function MarketDetail({ market }: { market: MarketSummary }) {
           >
             Matures {fmtMaturityDate(market.maturity)} · {fmtTimeToMaturity(market.maturity)} remaining
           </p>
+          {market.isLive && market.contracts && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-[11px]">
+              <span className="inline-flex items-center gap-2 border border-bid/40 bg-bid/[0.08] px-3 py-1 font-mono uppercase tracking-[0.28em] text-bid">
+                <span aria-hidden="true" className="block h-1.5 w-1.5 bg-bid" />
+                Live on testnet
+              </span>
+              <a
+                href={`https://stellar.expert/explorer/testnet/contract/${market.contracts.yieldStripping}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.28em] text-foil hover:text-foil-deep"
+              >
+                YS on Stellar Expert
+                <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                  <path d="M3 1h6v6M3 7l6-6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="square" />
+                </svg>
+              </a>
+              <a
+                href={`https://stellar.expert/explorer/testnet/contract/${market.contracts.amm}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.28em] text-foil hover:text-foil-deep"
+              >
+                AMM
+                <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                  <path d="M3 1h6v6M3 7l6-6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="square" />
+                </svg>
+              </a>
+            </div>
+          )}
         </div>
 
         <div className="col-span-12 grid grid-cols-2 gap-x-6 gap-y-4 lg:col-span-5 lg:grid-cols-4">
-          <StatMini label="Implied APY" value={fmtApy(market.impliedApy)} primary />
-          <StatMini label="PT" value={fmtPrice(market.ptPrice)} mono />
-          <StatMini label="YT" value={fmtPrice(market.ytPrice)} mono />
-          <StatMini label="TVL" value={market.tvl === 0 ? "—" : fmtUsd(market.tvl)} />
+          <StatMini
+            label="Implied APY"
+            value={fmtApy(impliedApy)}
+            primary
+            pulse={live.isLoading && market.isLive}
+          />
+          <StatMini label="PT" value={fmtPrice(ptPrice)} mono />
+          <StatMini label="YT" value={fmtPrice(ytPrice)} mono />
+          <StatMini
+            label={market.isLive ? "Supply" : "TVL"}
+            value={
+              market.isLive
+                ? live.supplyUnderlying === undefined
+                  ? "—"
+                  : fmtSupply(live.supplyUnderlying, market.underlying.symbol)
+                : market.tvl === 0
+                ? "—"
+                : fmtUsd(market.tvl)
+            }
+            mono={market.isLive}
+          />
         </div>
       </motion.header>
 
@@ -85,7 +138,7 @@ export default function MarketDetail({ market }: { market: MarketSummary }) {
             <span className="text-parchment/40">Implied yield curve</span>
           </div>
           <div className="mt-5 border border-parchment/10 bg-ink-deep/40 p-6">
-            <YieldCurveChart impliedApy={market.impliedApy} />
+            <YieldCurveChart impliedApy={impliedApy} />
           </div>
 
           <div className="mt-10 flex items-baseline gap-4 font-mono text-[9.5px] uppercase tracking-[0.36em] text-foil/80">
@@ -126,11 +179,13 @@ function StatMini({
   value,
   primary,
   mono,
+  pulse,
 }: {
   label: string;
   value: string;
   primary?: boolean;
   mono?: boolean;
+  pulse?: boolean;
 }) {
   return (
     <div>
@@ -140,12 +195,20 @@ function StatMini({
       <p
         className={`mt-1.5 num text-[22px] ${mono ? "font-mono" : "font-display"} ${
           primary ? "text-foil" : "text-parchment/95"
-        }`}
+        } ${pulse ? "animate-pulse" : ""}`}
       >
         {value}
       </p>
     </div>
   );
+}
+
+function fmtSupply(value: number, symbol: string): string {
+  if (value === 0) return `0 ${symbol}`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M ${symbol}`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(2)}K ${symbol}`;
+  if (value >= 1) return `${value.toFixed(2)} ${symbol}`;
+  return `${value.toFixed(4)} ${symbol}`;
 }
 
 function Mechanic({ label, copy }: { label: string; copy: string }) {

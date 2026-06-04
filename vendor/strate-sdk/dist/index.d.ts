@@ -1,5 +1,5 @@
-import { A as Address, N as Network, a as MarketView, M as MarketConfig, d as UserPosition, Y as YieldCurvePoint } from './client-C-4sL39j.js';
-export { B as BuildSwapTxParams, H as HALF_WAD, S as StrateClient, b as StrateClientOptions, c as SwapDirection, U as UNDERLYING_DECIMALS, W as WAD, e as asAddress, f as buildSwapTx, i as i128FromString, g as i128ToString, h as isAddress, n as numberToWad, w as wadToNumber } from './client-C-4sL39j.js';
+import { A as Address, N as Network, b as MarketView, M as MarketConfig, e as UserPosition, Y as YieldCurvePoint, a as MarketMeta } from './client-Ds7oKlMq.js';
+export { B as BuildSwapTxParams, H as HALF_WAD, S as StrateClient, c as StrateClientOptions, d as SwapDirection, U as UNDERLYING_DECIMALS, W as WAD, f as asAddress, g as buildSwapTx, i as i128FromString, h as i128ToString, j as isAddress, n as numberToWad, w as wadToNumber } from './client-Ds7oKlMq.js';
 import { rpc, Account, Transaction, xdr } from '@stellar/stellar-sdk';
 
 /** SDK-level error hierarchy. */
@@ -84,10 +84,11 @@ interface BuildRedeemTxParams {
 declare function buildRedeemTx(params: BuildRedeemTxParams): Promise<Transaction>;
 
 /**
- * YieldStripping::claim_yt_yield(user) -> i128
+ * YieldStripping::claim_yield(user) -> i128
  *
  * Sends all currently-claimable underlying yield accrued on the user's
- * YT balance to the user.
+ * YT balance to the user. Internally drains the per-user accrual bucket
+ * on YT via the push topology introduced in H-01.
  */
 
 interface BuildClaimYieldTxParams {
@@ -119,30 +120,61 @@ interface BuildAddLiquidityTxParams {
 declare function buildAddLiquidityTx(params: BuildAddLiquidityTxParams): Promise<Transaction>;
 
 /**
- * YieldStripping::get_config() -> MarketConfig
- * YieldStripping::total_supply() -> i128
- * AMM::reserves() -> (i128, i128)  // (pt, underlying)
+ * YieldStripping::sync_yield_index()
  *
- * Aggregates all three into a single `MarketView`.
+ * Anyone-can-call helper that reads the latest Blend rate via the
+ * Oracle and pushes the freshly-computed global yield index into YT.
+ * Useful as a poke before claim/redeem when the dApp wants the most
+ * up-to-date numbers, although every state-mutating YS entrypoint
+ * already calls this internally.
+ */
+
+interface BuildSyncYieldIndexTxParams {
+    server: rpc.Server;
+    network: Network;
+    source: Account;
+    market: Address;
+}
+declare function buildSyncYieldIndexTx(params: BuildSyncYieldIndexTxParams): Promise<Transaction>;
+
+/**
+ * YieldStripping::config() -> MarketConfig
+ * YT::total_supply() -> i128             (= PT::total_supply by construction)
+ * AMM::reserves() -> (i128, i128)        // (pt, underlying)
+ *
+ * Aggregates into a single `MarketView`. YS does not know its AMM peer
+ * (they're independent contracts wired by the Factory), so callers must
+ * pass the AMM address — typically resolved via Factory::get_market_meta.
  */
 
 interface ReadMarketParams {
     server: rpc.Server;
     network: Network;
+    /** YS contract address. */
     market: Address;
+    /** AMM address. Resolve via `Factory::get_market_meta(market)` before
+     *  calling, since YS doesn't know its AMM peer. */
+    amm: Address;
 }
 declare function readMarket(params: ReadMarketParams): Promise<MarketView>;
-/** Lower-level: just the config, no supply/reserves. */
-declare function readMarketConfig(params: ReadMarketParams): Promise<MarketConfig>;
+/** Lower-level: just YS::config, no supply/reserves. */
+declare function readMarketConfig(params: {
+    server: rpc.Server;
+    network: Network;
+    market: Address;
+}): Promise<MarketConfig>;
 
 /**
- * Reads a user's PT/YT balances and accrued yield in a single round-trip
- * (where possible).
+ * Reads a user's PT/YT balances and accrued yield in a single round-trip.
  *
  * - PT balance:        PT-token contract `.balance(user)`
  * - YT balance:        YT-token contract `.balance(user)`
- * - Accrued yield:     YieldStripping::accrued_yield_of(user) -> i128
- * - Claimable yield:   YieldStripping::claimable_yield_of(user) -> i128
+ * - Pending yield:     YieldStripping::pending_yield(user) -> i128
+ *
+ * H-01 (push topology) collapsed the previous `accrued_yield_of` /
+ * `claimable_yield_of` pair into a single `pending_yield` reading. The
+ * `UserPosition.claimableYield` field is kept for source-compat and
+ * mirrors `accruedYield` exactly.
  */
 
 interface ReadUserPositionParams {
@@ -191,6 +223,75 @@ interface ReadBlendRateParams {
     blendPool: Address;
 }
 declare function readBlendExchangeRate(params: ReadBlendRateParams): Promise<bigint>;
+
+/**
+ * Factory views.
+ *
+ * - Factory::market_count() -> u32
+ * - Factory::get_market_by_index(i) -> Option<Address>     (YS address)
+ * - Factory::get_market_meta(ys) -> Option<MarketMeta>
+ *
+ * The Factory is the only place that joins a YS address to its AMM
+ * peer. Use `readMarketMetaFromFactory` whenever you need an AMM
+ * address starting from YS.
+ */
+
+interface FactoryReadParams {
+    server: rpc.Server;
+    network: Network;
+    factory: Address;
+}
+declare function readMarketCount(p: FactoryReadParams): Promise<number>;
+declare function readMarketByIndex(p: FactoryReadParams & {
+    index: number;
+}): Promise<Address | null>;
+declare function readMarketMetaFromFactory(p: FactoryReadParams & {
+    ys: Address;
+}): Promise<MarketMeta | null>;
+/**
+ * Convenience: enumerate every market the factory knows about and
+ * return their full `MarketMeta`. O(N) RPC calls — N = market_count().
+ */
+declare function listMarkets(p: FactoryReadParams): Promise<MarketMeta[]>;
+
+/**
+ * Push-topology reads against the YT contract and the YS contract.
+ *
+ * - YT::global_yield_index() -> i128       (WAD)
+ * - YT::user_yield_index(user) -> i128     (WAD; user's snapshot)
+ * - YT::accrued_yield(user) -> i128        (underlying-denom)
+ * - YS::current_index() -> i128            (WAD; delegates to YT)
+ * - YS::pending_yield(user) -> i128        (underlying-denom; delegates to YT)
+ * - YS::is_paused() -> bool
+ *
+ * Use `readPendingYield` or `readAccruedYieldOnYt` for "how much can the
+ * user claim right now" — they return the same value via different paths.
+ * Prefer the YS path when the dApp already has the YS address; prefer the
+ * YT path when iterating multiple users on one contract.
+ */
+
+interface YsReadParams {
+    server: rpc.Server;
+    network: Network;
+    market: Address;
+}
+interface YtReadParams {
+    server: rpc.Server;
+    network: Network;
+    yt: Address;
+}
+declare function readCurrentIndex(p: YsReadParams): Promise<bigint>;
+declare function readPendingYield(p: YsReadParams & {
+    user: Address;
+}): Promise<bigint>;
+declare function readIsPaused(p: YsReadParams): Promise<boolean>;
+declare function readGlobalYieldIndex(p: YtReadParams): Promise<bigint>;
+declare function readUserYieldIndex(p: YtReadParams & {
+    user: Address;
+}): Promise<bigint>;
+declare function readAccruedYieldOnYt(p: YtReadParams & {
+    user: Address;
+}): Promise<bigint>;
 
 /**
  * BigInt <-> Soroban ScVal helpers.
@@ -246,4 +347,4 @@ declare function shortenAddress(addr: string, chars?: number): string;
 /** Format seconds-to-maturity as e.g. "42 days, 3 hours". */
 declare function formatTimeToMaturity(seconds: number): string;
 
-export { Address, type AddressBook, type BuildAddLiquidityTxParams, type BuildClaimYieldTxParams, type BuildMintTxParams, type BuildRedeemTxParams, type IntKind, MarketConfig, MarketView, Network, type ReadBlendRateParams, type ReadMarketParams, type ReadUserPositionParams, type ReadYieldParams, StrateAddressError, StrateEncodingError, StrateError, StrateNetworkError, StrateNotConfiguredError, StrateSimulationError, UserPosition, YieldCurvePoint, bigIntToScVal, buildAddLiquidityTx, buildClaimYieldTx, buildMintTx, buildRedeemTx, dateToLedgerTimestamp, formatApy, formatPtPrice, formatTimeToMaturity, formatTokenAmount, formatUnderlying, fromWad, getAddresses, isMatured, ledgerTimestampToDate, nowSec, readBlendExchangeRate, readImpliedApy, readMarket, readMarketConfig, readPtPrice, readUserPosition, readYieldCurvePoint, registerAddresses, scValToBigInt, shortenAddress, timeToMaturity, toWad, tryGetAddresses, wadDiv, wadMul, yearsToMaturity };
+export { Address, type AddressBook, type BuildAddLiquidityTxParams, type BuildClaimYieldTxParams, type BuildMintTxParams, type BuildRedeemTxParams, type BuildSyncYieldIndexTxParams, type FactoryReadParams, type IntKind, MarketConfig, MarketMeta, MarketView, Network, type ReadBlendRateParams, type ReadMarketParams, type ReadUserPositionParams, type ReadYieldParams, StrateAddressError, StrateEncodingError, StrateError, StrateNetworkError, StrateNotConfiguredError, StrateSimulationError, UserPosition, YieldCurvePoint, type YsReadParams, type YtReadParams, bigIntToScVal, buildAddLiquidityTx, buildClaimYieldTx, buildMintTx, buildRedeemTx, buildSyncYieldIndexTx, dateToLedgerTimestamp, formatApy, formatPtPrice, formatTimeToMaturity, formatTokenAmount, formatUnderlying, fromWad, getAddresses, isMatured, ledgerTimestampToDate, listMarkets, nowSec, readAccruedYieldOnYt, readBlendExchangeRate, readCurrentIndex, readGlobalYieldIndex, readImpliedApy, readIsPaused, readMarket, readMarketByIndex, readMarketConfig, readMarketCount, readMarketMetaFromFactory, readPendingYield, readPtPrice, readUserPosition, readUserYieldIndex, readYieldCurvePoint, registerAddresses, scValToBigInt, shortenAddress, timeToMaturity, toWad, tryGetAddresses, wadDiv, wadMul, yearsToMaturity };

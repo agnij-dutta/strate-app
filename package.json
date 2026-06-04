@@ -15,6 +15,7 @@
     "@strate/sdk": "file:./vendor/strate-sdk",
     "@tanstack/react-query": "^5.100.14",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/og": "^0.11.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.40.0",
     "next": "14.2.5",

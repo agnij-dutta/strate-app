@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWallet } from "@/lib/wallet/store";
-import { WALLET_DISPLAY } from "@/lib/wallet/kit";
+import { WALLET_DISPLAY } from "@/lib/wallet/kit-meta";
 import WalletPicker from "./WalletPicker";
 
 function shorten(addr: string) {

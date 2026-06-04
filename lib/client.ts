@@ -1,17 +1,16 @@
 import { rpc as StellarRpc } from "@stellar/stellar-sdk";
 import { Network, StrateClient } from "@strate/sdk";
+import { ACTIVE } from "./addresses";
 
-// Public Soroban RPC endpoints. Swap to a dedicated provider before mainnet
-// (StellarExpert and Validation Cloud both offer authenticated tiers).
-const TESTNET_RPC = "https://soroban-testnet.stellar.org";
-
-// Factory contract address. Replace with the deterministic address produced by
-// the Factory deploy step once the protocol is on testnet. Until then this is
-// a placeholder used only to satisfy the StrateClient constructor; UI flows
-// route through the mock layer in lib/mocks.ts. The string below is a
-// shape-valid 56-char strkey (C + 55 base32 chars). The SDK only validates
-// shape, not on-chain existence, which is what we want for build-time.
+// Factory contract is not yet deployed on testnet — the v1 protocol
+// architecture had a cross-build issue between the Factory crate and the
+// child contract cdylibs (`__constructor` symbol collision) that needs a
+// `strate-types` shared crate refactor to resolve. Tracked as a follow-up.
+// Until then, markets are listed statically from `lib/addresses.ts` and the
+// SDK client carries a shape-valid placeholder so the StrateClient
+// constructor accepts it.
 const PLACEHOLDER_FACTORY =
+  ACTIVE.factory ??
   process.env.NEXT_PUBLIC_FACTORY_ADDRESS ??
   "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB";
 
@@ -21,7 +20,7 @@ export function getStrateClient(): StrateClient {
   if (cached) return cached;
   cached = new StrateClient({
     network: Network.Testnet,
-    server: new StellarRpc.Server(TESTNET_RPC),
+    server: new StellarRpc.Server(ACTIVE.rpcUrl),
     factoryAddress: PLACEHOLDER_FACTORY,
   });
   return cached;

@@ -1,10 +1,16 @@
 /**
- * Mock data layer used until protocol contracts are deployed to testnet.
- * Every shape mirrors the SDK types so the swap to live data is a one-line
- * change at the call site.
+ * Market data layer. The XLM-2026-08 entry is **live on Soroban testnet**
+ * (deployed 2026-05-31) — its addresses come from lib/addresses.ts.
+ * The remaining entries are illustrative cards for issuers cited in the
+ * Mirror article; they have no contracts behind them yet.
+ *
+ * To make a market real:
+ *   1. Add its addresses to lib/addresses.ts under TESTNET.markets
+ *   2. Set isLive: true and contracts: <addresses> on its entry below
  */
 
 import type { MarketView, UserPosition, YieldCurvePoint } from "@strate/sdk";
+import { TESTNET } from "./addresses";
 
 export type MarketSummary = {
   id: string;
@@ -15,16 +21,54 @@ export type MarketSummary = {
   ytPrice: number;
   tvl: number; // USD
   status: "live" | "paused" | "expiring";
+  /** True only when contracts are deployed and addresses are wired below. */
+  isLive: boolean;
+  /** Per-market contract handles. Present on isLive markets only. */
+  contracts?: {
+    oracle: string;
+    pt: string;
+    yt: string;
+    yieldStripping: string;
+    amm: string;
+    underlying: string;
+  };
 };
 
 const day = 86400;
 const now = Math.floor(Date.now() / 1000);
 
-// Three reference markets that match the issuers we cite in the Mirror article.
-// The bUSDC market is "live" because Blend is the only issuer with a live
-// integration path on testnet today. CETES and BENJI are stubs for the
-// allocator-facing surface.
+// Hard-coded display values (price + APY) that match the current chart
+// stub. Keep these in lock-step with the chart until the SDK can read
+// live AMM state.
+const LIVE_DISPLAY_DEFAULTS = {
+  impliedApy: 0.0521,
+  ptPrice: 0.9612,
+  ytPrice: 0.0388,
+  tvl: 0,
+};
+
+// Markets surface. Live entries are derived from TESTNET.markets so a
+// factory-deployed market appears in the dApp by appending one entry to
+// lib/addresses.ts. Illustrative cards (bUSDC/CETES/BENJI) follow.
+const liveMarkets: MarketSummary[] = TESTNET.markets.map((m) => ({
+  id: m.id,
+  underlying: { symbol: m.underlying.symbol, issuer: m.underlying.issuer },
+  maturity: m.maturity,
+  ...LIVE_DISPLAY_DEFAULTS,
+  status: m.status,
+  isLive: true,
+  contracts: {
+    oracle: m.oracle,
+    pt: m.pt,
+    yt: m.yt,
+    yieldStripping: m.yieldStripping,
+    amm: m.amm,
+    underlying: m.underlying.address,
+  },
+}));
+
 export const MOCK_MARKETS: MarketSummary[] = [
+  ...liveMarkets,
   {
     id: "busdc-2026-12",
     underlying: { symbol: "bUSDC", issuer: "Blend" },
@@ -34,6 +78,7 @@ export const MOCK_MARKETS: MarketSummary[] = [
     ytPrice: 0.0488,
     tvl: 1_240_000,
     status: "live",
+    isLive: false,
   },
   {
     id: "cetes-2026-09",
@@ -44,6 +89,7 @@ export const MOCK_MARKETS: MarketSummary[] = [
     ytPrice: 0.0345,
     tvl: 480_000,
     status: "live",
+    isLive: false,
   },
   {
     id: "benji-2027-03",
@@ -54,6 +100,7 @@ export const MOCK_MARKETS: MarketSummary[] = [
     ytPrice: 0.0457,
     tvl: 0,
     status: "paused",
+    isLive: false,
   },
 ];
 

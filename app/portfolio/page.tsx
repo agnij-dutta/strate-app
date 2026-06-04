@@ -158,6 +158,13 @@ export default function PortfolioPage() {
                             { label: "Resets accrual to 0", value: "Confirm" },
                           ],
                           copy: "Claims the underlying yield accrued by your YT balance since the last claim or mint event.",
+                          params:
+                            market.isLive && market.contracts
+                              ? {
+                                  kind: "claim" as const,
+                                  market: market.contracts.yieldStripping,
+                                }
+                              : undefined,
                         })
                       }
                       disabled={claim === 0}
