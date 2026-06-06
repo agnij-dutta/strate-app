@@ -45,6 +45,10 @@ interface MarketConfig {
     scalarRoot: bigint;
     /** Single admin address authorized to pause / unpause. */
     admin: Address;
+    /** Hard cap on total underlying deposited, in underlying base units
+     *  (7-decimal on Stellar SAC). `0n` means "no cap". Every unaudited
+     *  mainnet market ships with a real value. */
+    tvlCap: bigint;
 }
 /**
  * Factory's view of a deployed market. This is the authoritative record

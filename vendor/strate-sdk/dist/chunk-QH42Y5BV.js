@@ -343,7 +343,8 @@ function parseMarketConfig(scVal) {
     oracle: addrFromField("oracle"),
     maturity: Number(m["maturity"] ?? 0),
     scalarRoot: BigInt(m["scalar_root"] ?? m["scalarRoot"] ?? 0n),
-    admin: addrFromField("admin")
+    admin: addrFromField("admin"),
+    tvlCap: BigInt(m["tvl_cap"] ?? m["tvlCap"] ?? 0n)
   };
 }
 async function readMarket(params) {

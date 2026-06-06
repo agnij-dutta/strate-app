@@ -13,6 +13,7 @@ import {
 import { useLiveMarketState } from "@/lib/hooks/use-live-market-state";
 import YieldCurveChart from "./YieldCurveChart";
 import ActionPanel from "./ActionPanel";
+import BetaBadge from "../BetaBadge";
 
 export default function MarketDetail({ market }: { market: MarketSummary }) {
   const live = useLiveMarketState(market.contracts?.yieldStripping);
@@ -48,9 +49,12 @@ export default function MarketDetail({ market }: { market: MarketSummary }) {
         className="grid grid-cols-12 items-end gap-x-10 gap-y-4 border-b border-parchment/10 pb-8"
       >
         <div className="col-span-12 lg:col-span-7">
-          <p className="font-mono text-[10px] uppercase tracking-[0.36em] text-foil/80">
-            Market · {market.id}
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="font-mono text-[10px] uppercase tracking-[0.36em] text-foil/80">
+              Market · {market.id}
+            </p>
+            {market.isLive && <BetaBadge />}
+          </div>
           <h1
             className="mt-2 font-display font-medium text-parchment"
             style={{
