@@ -86,12 +86,84 @@ export const TESTNET: NetworkAddresses = {
   ],
 };
 
+/**
+ * Mainnet addresses. Filled in by the deploy script after `stellar
+ * contract deploy` resolves each contract address. Until those are
+ * pasted in, `MAINNET.factory` is null and the dApp falls back to
+ * testnet wherever it depends on factory presence.
+ *
+ * Blend V2 Fixed pool (XLM + USDC):
+ *   CAJJZSGMMM3PD7N33TAPHGBUGTB43OC73HVIK2L2G6BNGGGYOSSYBXBD
+ *
+ * One blend-adapter is deployed per (pool, asset) pair — adapters
+ * translate Blend V2's `get_reserve(asset)` into the V1-shaped
+ * `get_reserve_data()` the Oracle expects.
+ */
 export const MAINNET: NetworkAddresses = {
-  rpcUrl: "https://soroban.stellar.org",
+  rpcUrl: "https://mainnet.sorobanrpc.com",
   passphrase: "Public Global Stellar Network ; September 2015",
   explorer: "https://stellar.expert/explorer/public",
-  factory: null,
-  markets: [],
+  // Deployed 2026-06-06 from strate-deploy
+  // (GDJR3AP4ZAL4R634EZNN3FZJJL2KAU7WP52GAWLS5RUHK6YBOGKQ3HC4). Total
+  // mainnet spend on the launch: 111.47 XLM (uploads dominated; the
+  // five sub-contract deploys per market via Factory.deploy_market
+  // were cheap once the WASMs were registered).
+  //
+  // Each market routes Oracle reads through a blend-adapter shim
+  // because Blend V2's get_reserve(asset) returns a different shape
+  // than the V1 get_reserve_data() our audit-baseline Oracle expects.
+  // Both adapters point at the Blend V2 Fixed pool
+  // CAJJZSGMMM3PD7N33TAPHGBUGTB43OC73HVIK2L2G6BNGGGYOSSYBXBD.
+  factory: "CCZRYDA637Z6CCH5MXMBZDHKDKYWIKDVADJ2FTQ6E2RWMWUBBZG4USAW",
+  markets: [
+    {
+      id: "xlm-2026-12",
+      label: "XLM-2026-12",
+      underlying: {
+        symbol: "XLM",
+        issuer: "Stellar (native SAC)",
+        address: "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
+      },
+      oracle: "CD46L6MBSQZR7OPLYGIIXTQMRM4U2KD3C33MD2DKKQMYRL4PO35LNSXT",
+      pt: "CC3F7U7Y47V4SRPY4W5OPPLJZIDGTZYSPYGZEYI2ZM3BYWHVVACLMBYE",
+      yt: "CBZLU3JGUVDX2FGZ5FG2WCLFTBLFAXRHUQT5ICJC3E6PLF7VLURPOTIA",
+      yieldStripping:
+        "CBEOPGLMDG3AGKMLTLBCGTXR2FAPC4XMR3BJFSID4LNP5K7LCTI7X4BZ",
+      amm: "CDXQHDRA5PPKAP4VAON5AKBLIDQKK3YRL2EWPUF3WSUUGRAI52HWAD63",
+      // 2026-12-06 00:00 IST = unix 1796495400. Six-month tenor from
+      // the launch date.
+      maturity: 1796495400,
+      status: "live",
+    },
+    {
+      id: "usdc-2026-09",
+      label: "USDC-2026-09",
+      underlying: {
+        symbol: "USDC",
+        issuer: "Circle (native SAC)",
+        address: "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+      },
+      oracle: "CAOVRE2BZYD2EKNY2O7TK6ICO6RHNNPLL7LZB6JOPVKOIR3CRZS2JLTO",
+      pt: "CBFUFU3MSTN5WCGCEOMWJQ26B6MCKQOTUAEG2JZYRMDRWKGGN5CTFYTN",
+      yt: "CCESXU33YVQKNYASPNYQMAFC24AX65NZUTSZSGY6SL6UAFGR2L55KYYX",
+      yieldStripping:
+        "CA77CV5IM2MCKIK2CHJRAAB4O2KPFDLY4U65MNNC6OWL2QXA2VGBW7H3",
+      amm: "CCMCCU7BDXOKO5P4ELQ7EMNZYSUXEAQB576AV4XC3UMI3SDNI3M4HA7T",
+      // 2026-09-06 00:00 IST = unix 1788633000. Three-month tenor.
+      maturity: 1788633000,
+      status: "live",
+    },
+  ],
 };
 
-export const ACTIVE: NetworkAddresses = TESTNET;
+/**
+ * Active network. Reads NEXT_PUBLIC_STRATE_NETWORK at build time so a
+ * single dApp build can target either network. Defaults to testnet so
+ * forgetting to set the env var on Vercel doesn't accidentally send
+ * users to mainnet.
+ */
+const networkEnv = process.env.NEXT_PUBLIC_STRATE_NETWORK?.toLowerCase();
+export const ACTIVE: NetworkAddresses =
+  networkEnv === "mainnet" ? MAINNET : TESTNET;
+
+export const IS_MAINNET = ACTIVE === MAINNET;

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrateClientProvider } from "@strate/sdk/hooks";
 import { useState, type ReactNode } from "react";
 import { getStrateClient } from "@/lib/client";
+import DisclaimerModal from "./DisclaimerModal";
 
 export default function Providers({ children }: { children: ReactNode }) {
   // Stable singletons across renders. QueryClient holds cache; StrateClient
@@ -28,6 +29,7 @@ export default function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <StrateClientProvider client={strateClient}>
         {children}
+        <DisclaimerModal />
       </StrateClientProvider>
     </QueryClientProvider>
   );
