@@ -2,7 +2,7 @@
 
 import { asAddress } from "@strate/sdk";
 import { getStrateClient } from "@/lib/client";
-import { ACTIVE, EXPLORER_NETWORK } from "@/lib/addresses";
+import { ACTIVE, EXPLORER_NETWORK, IS_MAINNET } from "@/lib/addresses";
 
 /**
  * Structured parameters for a transaction the drawer is about to submit.
@@ -99,7 +99,23 @@ export async function executeTx(
 ): Promise<string> {
   const client = getStrateClient();
   const user = asAddress(walletAddress);
-  const source = await client.server.getAccount(walletAddress);
+  // getAccount throws if the account does not exist on the active
+  // network. The most common cause is an unfunded wallet: a Stellar
+  // account only exists once it holds the ~1 XLM base reserve. Translate
+  // the raw "Account not found" into something a user can act on.
+  let source;
+  try {
+    source = await client.server.getAccount(walletAddress);
+  } catch (e) {
+    const raw = e instanceof Error ? e.message : String(e);
+    if (/not found|notfound|404/i.test(raw)) {
+      const net = IS_MAINNET ? "Stellar mainnet" : "Stellar testnet";
+      throw new Error(
+        `Your wallet is not funded on ${net}. A Stellar account needs at least ~1 XLM to exist. Send some XLM to ${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}, then try again.`,
+      );
+    }
+    throw e;
+  }
 
   let unsigned;
   switch (params.kind) {
