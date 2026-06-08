@@ -114,7 +114,7 @@ export default async function OG({ params }: { params: { id: string } }) {
                   display: "block",
                 }}
               />
-              Live testnet
+              Live mainnet
             </span>
           ) : (
             <span style={{ color: "rgba(245,241,232,0.4)" }}>Soon</span>

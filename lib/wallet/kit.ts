@@ -22,6 +22,7 @@ import {
   LOBSTR_ID,
 } from "@creit.tech/stellar-wallets-kit/modules/lobstr";
 import type { WalletId } from "./kit-meta";
+import { IS_MAINNET } from "../addresses";
 
 /**
  * Initialise StellarWalletsKit once per page lifetime with the four
@@ -39,7 +40,11 @@ export function initWalletKit() {
   if (inited || typeof window === "undefined") return;
   inited = true;
   StellarWalletsKit.init({
-    network: Networks.TESTNET,
+    // Tell the wallet which network to sign for. With TESTNET hardcoded a
+    // mainnet-funded account signs a testnet transaction and the RPC
+    // reports "Account not found" because that account does not exist on
+    // testnet. Drive it off the active network instead.
+    network: IS_MAINNET ? Networks.PUBLIC : Networks.TESTNET,
     modules: [
       new FreighterModule(),
       new xBullModule(),

@@ -7,6 +7,7 @@ import { executeTx } from "@/lib/tx/build";
 import { useHistory } from "@/lib/tx/history";
 import { useToast } from "@/lib/toast/store";
 import { useWallet } from "@/lib/wallet/store";
+import { EXPLORER_NETWORK, IS_MAINNET, NETWORK_LABEL, NETWORK_SLUG } from "@/lib/addresses";
 
 /**
  * Right-side slide-in drawer that confirms the pending transaction. The
@@ -73,7 +74,7 @@ export default function TxDrawer() {
         toastUpsert(tid, {
           kind: "pending",
           title,
-          body: "Broadcasting to Soroban testnet.",
+          body: `Broadcasting to Soroban ${NETWORK_SLUG}.`,
         });
       } else {
         // Simulated path — used for non-live markets and YT swap directions
@@ -97,12 +98,12 @@ export default function TxDrawer() {
         kind: "success",
         title,
         body: hasParams
-          ? "Transaction confirmed on testnet."
+          ? `Transaction confirmed on ${NETWORK_SLUG}.`
           : "Simulated transaction recorded.",
         action: hasParams
           ? {
               label: "View on Stellar Expert",
-              href: `https://stellar.expert/explorer/testnet/tx/${hash}`,
+              href: `https://stellar.expert/explorer/${EXPLORER_NETWORK}/tx/${hash}`,
             }
           : undefined,
         ttl: 8000,
@@ -111,7 +112,7 @@ export default function TxDrawer() {
         hash,
         action: status.preview.action,
         title,
-        network: "testnet",
+        network: NETWORK_SLUG,
         walletAddress: wallet.address,
         rows: status.preview.rows.map((r) => ({ label: r.label, value: r.value })),
         status: "success",
@@ -130,7 +131,7 @@ export default function TxDrawer() {
         hash: "",
         action: status.preview.action,
         title,
-        network: "testnet",
+        network: NETWORK_SLUG,
         walletAddress: wallet.address,
         rows: status.preview.rows.map((r) => ({ label: r.label, value: r.value })),
         status: "error",
@@ -293,7 +294,9 @@ export default function TxDrawer() {
                   </button>
                 )}
                 <p className="mt-3 text-center font-mono text-[9.5px] uppercase tracking-[0.32em] text-parchment/35">
-                  Testnet · contracts pending deploy · no value at risk
+                  {IS_MAINNET
+                    ? `${NETWORK_LABEL} · unaudited beta · TVL-capped`
+                    : `${NETWORK_LABEL} · no value at risk`}
                 </p>
               </div>
             </div>
@@ -347,7 +350,7 @@ function SuccessBanner({ hash }: { hash: string }) {
       <div className="flex items-baseline gap-3">
         <span aria-hidden="true" className="block h-1.5 w-1.5 bg-bid" />
         <p className="font-mono text-[10px] uppercase tracking-[0.32em] text-bid">
-          Confirmed on testnet
+          Confirmed on {NETWORK_SLUG}
         </p>
       </div>
       <p
@@ -360,7 +363,7 @@ function SuccessBanner({ hash }: { hash: string }) {
         {hash}
       </p>
       <a
-        href={`https://stellar.expert/explorer/testnet/tx/${hash}`}
+        href={`https://stellar.expert/explorer/${EXPLORER_NETWORK}/tx/${hash}`}
         target="_blank"
         rel="noopener noreferrer"
         className="mt-3 inline-flex font-mono text-[10px] uppercase tracking-[0.28em] text-foil hover:text-foil-deep"

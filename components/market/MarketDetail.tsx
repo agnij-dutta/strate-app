@@ -11,6 +11,7 @@ import {
   fmtUsd,
 } from "@/lib/format";
 import { useLiveMarketState } from "@/lib/hooks/use-live-market-state";
+import { EXPLORER_NETWORK, NETWORK_SLUG } from "@/lib/addresses";
 import YieldCurveChart from "./YieldCurveChart";
 import ActionPanel from "./ActionPanel";
 import BetaBadge from "../BetaBadge";
@@ -81,10 +82,10 @@ export default function MarketDetail({ market }: { market: MarketSummary }) {
             <div className="mt-4 flex flex-wrap items-center gap-3 text-[11px]">
               <span className="inline-flex items-center gap-2 border border-bid/40 bg-bid/[0.08] px-3 py-1 font-mono uppercase tracking-[0.28em] text-bid">
                 <span aria-hidden="true" className="block h-1.5 w-1.5 bg-bid" />
-                Live on testnet
+                Live on {NETWORK_SLUG}
               </span>
               <a
-                href={`https://stellar.expert/explorer/testnet/contract/${market.contracts.yieldStripping}`}
+                href={`https://stellar.expert/explorer/${EXPLORER_NETWORK}/contract/${market.contracts.yieldStripping}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.28em] text-foil hover:text-foil-deep"
@@ -95,7 +96,7 @@ export default function MarketDetail({ market }: { market: MarketSummary }) {
                 </svg>
               </a>
               <a
-                href={`https://stellar.expert/explorer/testnet/contract/${market.contracts.amm}`}
+                href={`https://stellar.expert/explorer/${EXPLORER_NETWORK}/contract/${market.contracts.amm}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.28em] text-foil hover:text-foil-deep"

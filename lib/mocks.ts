@@ -10,7 +10,7 @@
  */
 
 import type { MarketView, UserPosition, YieldCurvePoint } from "@strate/sdk";
-import { TESTNET } from "./addresses";
+import { ACTIVE } from "./addresses";
 
 export type MarketSummary = {
   id: string;
@@ -50,7 +50,7 @@ const LIVE_DISPLAY_DEFAULTS = {
 // Markets surface. Live entries are derived from TESTNET.markets so a
 // factory-deployed market appears in the dApp by appending one entry to
 // lib/addresses.ts. Illustrative cards (bUSDC/CETES/BENJI) follow.
-const liveMarkets: MarketSummary[] = TESTNET.markets.map((m) => ({
+const liveMarkets: MarketSummary[] = ACTIVE.markets.map((m) => ({
   id: m.id,
   underlying: { symbol: m.underlying.symbol, issuer: m.underlying.issuer },
   maturity: m.maturity,

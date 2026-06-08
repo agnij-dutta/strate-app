@@ -92,7 +92,7 @@ export default async function OG() {
               fontStyle: "italic",
             }}
           >
-            Yield-stripping markets live on Stellar testnet. Mint principal
+            Yield-stripping markets live on Stellar mainnet. Mint principal
             and yield tokens, trade them separately, redeem at maturity.
           </div>
         </div>
@@ -157,7 +157,7 @@ export default async function OG() {
           <span style={{ fontFamily: "Georgia, serif", fontSize: 40, fontStyle: "italic", color: "#F5F1E8", textTransform: "none", letterSpacing: "-0.01em" }}>
             strate
           </span>
-          <span>Testnet · Mainnet pending audit</span>
+          <span>Mainnet beta · Unaudited · TVL-capped</span>
         </div>
       </div>
     ),

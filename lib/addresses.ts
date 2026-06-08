@@ -158,12 +158,20 @@ export const MAINNET: NetworkAddresses = {
 
 /**
  * Active network. Reads NEXT_PUBLIC_STRATE_NETWORK at build time so a
- * single dApp build can target either network. Defaults to testnet so
- * forgetting to set the env var on Vercel doesn't accidentally send
- * users to mainnet.
+ * single dApp build can target either network. Mainnet is live, so it
+ * is the DEFAULT: a missing or stale env var can never silently ship a
+ * testnet build to production. Opt into testnet explicitly with
+ * NEXT_PUBLIC_STRATE_NETWORK=testnet.
  */
 const networkEnv = process.env.NEXT_PUBLIC_STRATE_NETWORK?.toLowerCase();
 export const ACTIVE: NetworkAddresses =
-  networkEnv === "mainnet" ? MAINNET : TESTNET;
+  networkEnv === "testnet" ? TESTNET : MAINNET;
 
 export const IS_MAINNET = ACTIVE === MAINNET;
+
+/** Capitalized network label for UI chrome, e.g. "Mainnet". */
+export const NETWORK_LABEL = IS_MAINNET ? "Mainnet" : "Testnet";
+/** Lowercase network word for body copy, e.g. "mainnet". */
+export const NETWORK_SLUG = IS_MAINNET ? "mainnet" : "testnet";
+/** stellar.expert path segment: "public" for mainnet, "testnet" otherwise. */
+export const EXPLORER_NETWORK = IS_MAINNET ? "public" : "testnet";

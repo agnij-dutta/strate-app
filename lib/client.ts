@@ -1,15 +1,11 @@
 import { rpc as StellarRpc } from "@stellar/stellar-sdk";
 import { Network, StrateClient } from "@strate/sdk";
-import { ACTIVE } from "./addresses";
+import { ACTIVE, IS_MAINNET } from "./addresses";
 
-// Factory contract is not yet deployed on testnet — the v1 protocol
-// architecture had a cross-build issue between the Factory crate and the
-// child contract cdylibs (`__constructor` symbol collision) that needs a
-// `strate-types` shared crate refactor to resolve. Tracked as a follow-up.
-// Until then, markets are listed statically from `lib/addresses.ts` and the
-// SDK client carries a shape-valid placeholder so the StrateClient
-// constructor accepts it.
-const PLACEHOLDER_FACTORY =
+// The factory is deployed on both networks now. Fall back to a
+// shape-valid placeholder only if an address is somehow missing, so the
+// StrateClient constructor never throws at module load.
+const FACTORY_ADDRESS =
   ACTIVE.factory ??
   process.env.NEXT_PUBLIC_FACTORY_ADDRESS ??
   "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB";
@@ -19,9 +15,12 @@ let cached: StrateClient | null = null;
 export function getStrateClient(): StrateClient {
   if (cached) return cached;
   cached = new StrateClient({
-    network: Network.Testnet,
+    // Must match the active network. A hardcoded Testnet here builds
+    // read simulations against the wrong passphrase and breaks every
+    // on-chain read on mainnet (supply, implied APY, PT/YT prices).
+    network: IS_MAINNET ? Network.Mainnet : Network.Testnet,
     server: new StellarRpc.Server(ACTIVE.rpcUrl),
-    factoryAddress: PLACEHOLDER_FACTORY,
+    factoryAddress: FACTORY_ADDRESS,
   });
   return cached;
 }

@@ -9,6 +9,7 @@ import ErrorBoundary from "./ErrorBoundary";
 import ToastContainer from "./ToastContainer";
 import TxDrawer from "./TxDrawer";
 import Wordmark from "./Wordmark";
+import { IS_MAINNET, NETWORK_LABEL } from "@/lib/addresses";
 
 const navItems = [
   { label: "Markets", href: "/markets" },
@@ -108,7 +109,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-2 sm:gap-3">
             <span className="hidden font-mono text-[9.5px] uppercase tracking-[0.32em] text-parchment/40 lg:inline">
               <span className="mr-2 inline-block h-1.5 w-1.5 translate-y-[-1px] bg-foil align-middle" />
-              Testnet
+              {NETWORK_LABEL}
             </span>
             <ConnectButton />
             {/* Mobile menu trigger */}
@@ -225,7 +226,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 </ul>
                 <p className="mt-8 font-mono text-[9.5px] uppercase tracking-[0.32em] text-parchment/40">
                   <span className="mr-2 inline-block h-1.5 w-1.5 translate-y-[-1px] bg-foil align-middle" />
-                  Testnet · Mainnet pending audit
+                  {IS_MAINNET ? "Mainnet · unaudited beta" : "Testnet · Mainnet pending audit"}
                 </p>
               </nav>
             </motion.aside>
@@ -243,7 +244,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <footer className="border-t border-parchment/8 bg-ink-deep">
         <div className="mx-auto flex w-full max-w-[1400px] flex-col items-start gap-2 px-5 py-6 sm:flex-row sm:items-center sm:justify-between lg:px-10">
           <p className="font-mono text-[9.5px] uppercase tracking-[0.32em] text-parchment/40">
-            Strate · Yield-stripping on Stellar · Testnet
+            Strate · Yield-stripping on Stellar · {NETWORK_LABEL}
           </p>
           <p className="font-mono text-[9.5px] uppercase tracking-[0.32em] text-parchment/30">
             Audit by OtterSec · pending mainnet

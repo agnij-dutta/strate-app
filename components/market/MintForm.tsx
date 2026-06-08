@@ -5,6 +5,7 @@ import type { MarketSummary } from "@/lib/mocks";
 import { useTx } from "@/lib/tx/store";
 import { toUnits } from "@/lib/tx/build";
 import { useWallet } from "@/lib/wallet/store";
+import { IS_MAINNET } from "@/lib/addresses";
 import { fmtApy, fmtPrice } from "@/lib/format";
 import AmountInput from "./AmountInput";
 import PrimaryButton from "./PrimaryButton";
@@ -60,7 +61,11 @@ export default function MintForm({ market }: { market: MarketSummary }) {
         value={amount}
         onChange={setAmount}
         suffix={market.underlying.symbol}
-        helper="Balance: 0.0000 (testnet faucet pending)"
+        helper={
+          IS_MAINNET
+            ? `Balance shown in your wallet · ${market.underlying.symbol} on mainnet`
+            : "Balance: 0.0000 (testnet faucet pending)"
+        }
       />
 
       <div className="border border-parchment/10 bg-parchment/[0.02] p-4">

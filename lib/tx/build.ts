@@ -2,7 +2,7 @@
 
 import { asAddress } from "@strate/sdk";
 import { getStrateClient } from "@/lib/client";
-import { ACTIVE } from "@/lib/addresses";
+import { ACTIVE, EXPLORER_NETWORK } from "@/lib/addresses";
 
 /**
  * Structured parameters for a transaction the drawer is about to submit.
@@ -53,8 +53,10 @@ export function toUnits(value: string, decimals: number): bigint {
  */
 async function submitAndPoll(signedXdr: string): Promise<string> {
   const client = getStrateClient();
-  const { Networks, TransactionBuilder } = await import("@stellar/stellar-sdk");
-  const tx = TransactionBuilder.fromXDR(signedXdr, Networks.TESTNET);
+  const { TransactionBuilder } = await import("@stellar/stellar-sdk");
+  // Rehydrate against the active network's passphrase, not a hardcoded
+  // testnet one, so mainnet transactions parse and submit correctly.
+  const tx = TransactionBuilder.fromXDR(signedXdr, ACTIVE.passphrase);
   const sendResp = await client.server.sendTransaction(tx);
 
   if (sendResp.status === "ERROR") {
@@ -76,7 +78,7 @@ async function submitAndPoll(signedXdr: string): Promise<string> {
     if (txResp.status === "SUCCESS") return hash;
     if (txResp.status === "FAILED") {
       throw new Error(
-        `Transaction failed on-chain. See https://stellar.expert/explorer/testnet/tx/${hash}`,
+        `Transaction failed on-chain. See https://stellar.expert/explorer/${EXPLORER_NETWORK}/tx/${hash}`,
       );
     }
     // NOT_FOUND or PENDING — keep polling.

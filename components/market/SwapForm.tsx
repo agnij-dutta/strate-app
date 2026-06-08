@@ -114,7 +114,7 @@ export default function SwapForm({ market }: { market: MarketSummary }) {
               disabled={disabled}
               title={
                 disabled
-                  ? "YT routes ship after the next AMM pass — PT ↔ U only on testnet."
+                  ? "YT routes ship with the next AMM pass. PT and underlying only for now."
                   : undefined
               }
               onClick={() => !disabled && setDirection(d.id)}

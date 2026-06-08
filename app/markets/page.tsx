@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MOCK_MARKETS } from "@/lib/mocks";
+import { NETWORK_LABEL, NETWORK_SLUG } from "@/lib/addresses";
 import {
   fmtApy,
   fmtPrice,
@@ -9,7 +10,7 @@ import {
 
 export const metadata = {
   title: "Markets · Strate",
-  description: "Yield-stripping markets live on Stellar testnet.",
+  description: `Yield-stripping markets live on Stellar ${NETWORK_SLUG}.`,
 };
 
 const STATUS_DOT: Record<string, string> = {
@@ -66,8 +67,8 @@ export default function MarketsPage() {
       <div className="mt-10 grid grid-cols-2 gap-6 border-y border-parchment/10 py-6 lg:grid-cols-4">
         <Stat label="Live markets" value={`${markets.filter((m) => m.status === "live").length}`} />
         <Stat label="Total markets" value={`${totals.count}`} />
-        <Stat label="TVL (testnet)" value={fmtUsd(totals.tvl)} />
-        <Stat label="Network" value="Stellar Testnet" />
+        <Stat label={`TVL (${NETWORK_SLUG})`} value={fmtUsd(totals.tvl)} />
+        <Stat label="Network" value={`Stellar ${NETWORK_LABEL}`} />
       </div>
 
       <div className="mt-10 overflow-hidden border border-parchment/10">
