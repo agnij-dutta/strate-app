@@ -1,40 +1,15 @@
-import Link from "next/link";
 import { MOCK_MARKETS } from "@/lib/mocks";
-import { NETWORK_LABEL, NETWORK_SLUG } from "@/lib/addresses";
-import {
-  fmtApy,
-  fmtPrice,
-  fmtTimeToMaturity,
-  fmtUsd,
-} from "@/lib/format";
+import { IS_MAINNET, NETWORK_LABEL, NETWORK_SLUG } from "@/lib/addresses";
+import MarketRow from "@/components/market/MarketRow";
 
 export const metadata = {
   title: "Markets · Strate",
   description: `Yield-stripping markets live on Stellar ${NETWORK_SLUG}.`,
 };
 
-const STATUS_DOT: Record<string, string> = {
-  live: "bg-bid",
-  paused: "bg-parchment/30",
-  expiring: "bg-foil",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  live: "Live",
-  paused: "Soon",
-  expiring: "Expiring",
-};
-
 export default function MarketsPage() {
   const markets = MOCK_MARKETS;
-  const totals = markets.reduce(
-    (acc, m) => {
-      acc.tvl += m.tvl;
-      acc.count += 1;
-      return acc;
-    },
-    { tvl: 0, count: 0 },
-  );
+  const liveCount = markets.filter((m) => m.status === "live").length;
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-5 py-10 sm:px-6 sm:py-12 lg:px-10 lg:py-16">
@@ -65,9 +40,9 @@ export default function MarketsPage() {
       </header>
 
       <div className="mt-10 grid grid-cols-2 gap-6 border-y border-parchment/10 py-6 lg:grid-cols-4">
-        <Stat label="Live markets" value={`${markets.filter((m) => m.status === "live").length}`} />
-        <Stat label="Total markets" value={`${totals.count}`} />
-        <Stat label={`TVL (${NETWORK_SLUG})`} value={fmtUsd(totals.tvl)} />
+        <Stat label="Live markets" value={`${liveCount}`} />
+        <Stat label="Total markets" value={`${markets.length}`} />
+        <Stat label="TVL cap / market" value={IS_MAINNET ? "50,000" : "unlimited"} />
         <Stat label="Network" value={`Stellar ${NETWORK_LABEL}`} />
       </div>
 
@@ -84,50 +59,7 @@ export default function MarketsPage() {
 
         <ul>
           {markets.map((m) => (
-            <li key={m.id}>
-              <Link
-                href={`/markets/${m.id}`}
-                className="group block border-b border-parchment/8 transition-colors duration-200 hover:bg-parchment/[0.025]"
-              >
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3 px-5 py-4 sm:px-6 sm:py-5 lg:grid-cols-[2.4fr_1fr_1fr_1fr_1fr_1fr_0.6fr] lg:items-center lg:gap-4">
-                  <div className="col-span-2 lg:col-span-1">
-                    <div className="flex items-baseline gap-2.5">
-                      <p className="font-display text-[22px] text-parchment">
-                        {m.underlying.symbol}
-                      </p>
-                      {m.isLive && (
-                        <span className="inline-flex items-center gap-1.5 border border-bid/40 bg-bid/[0.08] px-1.5 py-0.5 font-mono text-[8.5px] uppercase tracking-[0.28em] text-bid">
-                          <span aria-hidden="true" className="block h-1 w-1 bg-bid" />
-                          Live
-                        </span>
-                      )}
-                    </div>
-                    <p
-                      className="text-[12px] italic text-parchment/55"
-                      style={{ fontFamily: "var(--font-fraunces), serif" }}
-                    >
-                      {m.underlying.issuer}
-                    </p>
-                  </div>
-                  <Cell
-                    label="Maturity"
-                    value={fmtTimeToMaturity(m.maturity)}
-                    accent={m.status === "expiring"}
-                  />
-                  <Cell label="Implied APY" value={fmtApy(m.impliedApy)} primary />
-                  <Cell label="PT" value={fmtPrice(m.ptPrice)} mono />
-                  <Cell label="YT" value={fmtPrice(m.ytPrice)} mono />
-                  <Cell label="TVL" value={m.tvl === 0 ? "—" : fmtUsd(m.tvl)} />
-                  <div className="hidden items-center justify-end gap-2 font-mono text-[10px] uppercase tracking-[0.24em] text-parchment/65 lg:flex">
-                    <span
-                      aria-hidden="true"
-                      className={`block h-1.5 w-1.5 ${STATUS_DOT[m.status]}`}
-                    />
-                    {STATUS_LABEL[m.status]}
-                  </div>
-                </div>
-              </Link>
-            </li>
+            <MarketRow key={m.id} market={m} />
           ))}
         </ul>
       </div>
@@ -153,37 +85,3 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Cell({
-  label,
-  value,
-  primary,
-  mono,
-  accent,
-}: {
-  label: string;
-  value: string;
-  primary?: boolean;
-  mono?: boolean;
-  accent?: boolean;
-}) {
-  return (
-    <div className="lg:text-right">
-      <p className="font-mono text-[9.5px] uppercase tracking-[0.28em] text-parchment/40 lg:hidden">
-        {label}
-      </p>
-      <p
-        className={`num text-[14px] ${
-          mono ? "font-mono" : "font-display"
-        } ${
-          primary
-            ? "text-foil"
-            : accent
-              ? "text-foil/85"
-              : "text-parchment/90"
-        }`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
