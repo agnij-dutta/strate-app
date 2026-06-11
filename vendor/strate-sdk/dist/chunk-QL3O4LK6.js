@@ -244,13 +244,12 @@ import {
 
 // src/transactions/_common.ts
 import {
-  BASE_FEE,
   Contract,
   Networks,
   TransactionBuilder
 } from "@stellar/stellar-sdk";
 var DEFAULT_TIMEOUT_SECONDS = 180;
-var DEFAULT_FEE = String(Number(BASE_FEE) * 10);
+var DEFAULT_FEE = String(1e5);
 function networkPassphrase(network) {
   switch (network) {
     case "PUBLIC" /* Mainnet */:

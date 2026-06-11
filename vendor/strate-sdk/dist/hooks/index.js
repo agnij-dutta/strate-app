@@ -4,7 +4,7 @@ import {
   readMarket,
   readMarketMetaFromFactory,
   readPendingYield
-} from "../chunk-QH42Y5BV.js";
+} from "../chunk-QL3O4LK6.js";
 
 // src/hooks/use-strate-client.ts
 import {

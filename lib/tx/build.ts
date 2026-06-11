@@ -51,8 +51,13 @@ export function toUnits(value: string, decimals: number): bigint {
  * a terminal state. Returns the transaction hash on success; throws with
  * the host-reported result on failure or timeout.
  *
- * Polling cadence: 800ms initially, scaling up to 2s. Cap at 30s — long
- * enough for two ledger closes (~5s each) with comfortable headroom.
+ * Polling cadence: 800ms initially, scaling up to 2s. Cap at 90s — long
+ * enough that even under mainnet congestion (4 to 6 ledger closes plus
+ * RPC propagation lag) the tx has time to land before we give up. The
+ * old 30s cap regularly tripped during peak hours: the tx had been
+ * submitted but the indexer hadn't seen it yet, so the dApp surfaced
+ * a misleading "did not finalize" error while the tx was still mid-
+ * flight (or, with too-low inclusion fees, would never land).
  */
 async function submitAndPoll(signedXdr: string): Promise<string> {
   const client = getStrateClient();
@@ -60,7 +65,15 @@ async function submitAndPoll(signedXdr: string): Promise<string> {
   // Rehydrate against the active network's passphrase, not a hardcoded
   // testnet one, so mainnet transactions parse and submit correctly.
   const tx = TransactionBuilder.fromXDR(signedXdr, ACTIVE.passphrase);
-  const sendResp = await client.server.sendTransaction(tx);
+
+  // Retry sendTransaction once on TRY_AGAIN_LATER. The RPC returns that
+  // status briefly when its mempool is hot; immediately retrying with
+  // the same XDR almost always succeeds.
+  let sendResp = await client.server.sendTransaction(tx);
+  if (sendResp.status === "TRY_AGAIN_LATER") {
+    await new Promise((r) => setTimeout(r, 1500));
+    sendResp = await client.server.sendTransaction(tx);
+  }
 
   if (sendResp.status === "ERROR") {
     throw new Error(
@@ -70,24 +83,25 @@ async function submitAndPoll(signedXdr: string): Promise<string> {
     );
   }
   const hash = sendResp.hash;
+  const explorerUrl = `https://stellar.expert/explorer/${EXPLORER_NETWORK}/tx/${hash}`;
 
-  // Poll. Stop on SUCCESS, throw on FAILED, time out after ~30s.
+  // Poll for up to 90 seconds.
   const start = Date.now();
   let delay = 800;
-  while (Date.now() - start < 30_000) {
+  while (Date.now() - start < 90_000) {
     await new Promise((r) => setTimeout(r, delay));
     delay = Math.min(delay + 200, 2000);
     const txResp = await client.server.getTransaction(hash);
     if (txResp.status === "SUCCESS") return hash;
     if (txResp.status === "FAILED") {
       throw new Error(
-        `Transaction failed on-chain. See https://stellar.expert/explorer/${EXPLORER_NETWORK}/tx/${hash}`,
+        `Transaction failed on-chain. See ${explorerUrl}`,
       );
     }
     // NOT_FOUND or PENDING — keep polling.
   }
   throw new Error(
-    `Transaction did not finalize within 30 seconds. Check explorer: ${hash}`,
+    `Transaction did not finalize within 90 seconds. It may still land — check ${explorerUrl}`,
   );
 }
 
