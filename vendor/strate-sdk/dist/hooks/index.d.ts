@@ -1,6 +1,6 @@
 import * as react from 'react';
 import { ReactNode } from 'react';
-import { S as StrateClient, A as Address, b as MarketView, a as MarketMeta, e as UserPosition, Y as YieldCurvePoint } from '../client-CyRRT1a-.js';
+import { S as StrateClient, A as Address, b as MarketView, a as MarketMeta, e as UserPosition, Y as YieldCurvePoint } from '../client-7QyHOOK1.js';
 import { UseQueryResult } from '@tanstack/react-query';
 import '@stellar/stellar-sdk';
 

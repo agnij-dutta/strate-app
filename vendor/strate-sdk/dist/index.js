@@ -40,14 +40,16 @@ import {
 // src/transactions/mint.ts
 import { Address as SorobanAddress } from "@stellar/stellar-sdk";
 async function buildMintTx(params) {
+  const userScv = new SorobanAddress(params.user).toScVal();
   return buildInvokeTx({
     server: params.server,
     network: params.network,
     source: params.source,
     contractAddress: params.market,
-    method: "mint_pt_yt",
+    method: "mint",
     args: [
-      new SorobanAddress(params.user).toScVal(),
+      userScv,
+      userScv,
       bigIntToScVal(params.underlyingAmount, "i128")
     ]
   });
@@ -56,7 +58,7 @@ async function buildMintTx(params) {
 // src/transactions/redeem.ts
 import { Address as SorobanAddress2 } from "@stellar/stellar-sdk";
 async function buildRedeemTx(params) {
-  const method = params.atMaturity ? "redeem_pt_at_maturity" : "redeem_pt_yt";
+  const method = params.atMaturity ? "redeem_pt" : "redeem_pair";
   return buildInvokeTx({
     server: params.server,
     network: params.network,
@@ -86,7 +88,7 @@ async function buildClaimYieldTx(params) {
 // src/transactions/swap.ts
 import { Address as SorobanAddress4 } from "@stellar/stellar-sdk";
 async function buildSwapTx(params) {
-  const method = params.tokenIn === "PT" ? "swap_pt_for_underlying" : "swap_underlying_for_pt";
+  const method = params.tokenIn === "PT" ? "swap_exact_pt_for_sy" : "swap_sy_for_exact_pt";
   return buildInvokeTx({
     server: params.server,
     network: params.network,
