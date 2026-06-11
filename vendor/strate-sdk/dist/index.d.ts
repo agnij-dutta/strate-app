@@ -1,5 +1,5 @@
-import { A as Address, N as Network, b as MarketView, M as MarketConfig, e as UserPosition, Y as YieldCurvePoint, a as MarketMeta } from './client-CyRRT1a-.js';
-export { B as BuildSwapTxParams, H as HALF_WAD, S as StrateClient, c as StrateClientOptions, d as SwapDirection, U as UNDERLYING_DECIMALS, W as WAD, f as asAddress, g as buildSwapTx, i as i128FromString, h as i128ToString, j as isAddress, n as numberToWad, w as wadToNumber } from './client-CyRRT1a-.js';
+import { A as Address, N as Network, b as MarketView, M as MarketConfig, e as UserPosition, Y as YieldCurvePoint, a as MarketMeta } from './client-7QyHOOK1.js';
+export { B as BuildSwapTxParams, H as HALF_WAD, S as StrateClient, c as StrateClientOptions, d as SwapDirection, U as UNDERLYING_DECIMALS, W as WAD, f as asAddress, g as buildSwapTx, i as i128FromString, h as i128ToString, j as isAddress, n as numberToWad, w as wadToNumber } from './client-7QyHOOK1.js';
 import { rpc, Account, Transaction, xdr } from '@stellar/stellar-sdk';
 
 /** SDK-level error hierarchy. */
@@ -50,10 +50,12 @@ declare function getAddresses(network: Network): AddressBook;
 declare function tryGetAddresses(network: Network): AddressBook | null;
 
 /**
- * YieldStripping::mint_pt_yt(user, underlying_amount) -> (i128, i128)
+ * YieldStripping::mint(from, to, amount) -> (pt_out, yt_out, index_at_mint)
  *
- * The user deposits `underlyingAmount` of the market's underlying and
- * receives equal amounts of PT and YT.
+ * Pulls `amount` of underlying from `from` (requires `from.require_auth`)
+ * and mints matching PT + YT to `to`. The two addresses are kept
+ * separate so a router contract can pull from itself and credit a
+ * different beneficiary. For a user-facing dApp, `from == to`.
  */
 
 interface BuildMintTxParams {
@@ -67,8 +69,14 @@ interface BuildMintTxParams {
 declare function buildMintTx(params: BuildMintTxParams): Promise<Transaction>;
 
 /**
- * YieldStripping::redeem_pt_yt(user, pt_amount) -> i128         (pre-maturity)
- * YieldStripping::redeem_pt_at_maturity(user, pt_amount) -> i128 (at maturity)
+ * Pre-maturity: YieldStripping::redeem_pair(from, amount) -> i128
+ *   Burns `amount` of PT AND `amount` of YT in equal pairs, returns
+ *   `amount` underlying 1:1. The matched-pair path: no oracle hop, no
+ *   yield accrual, just a clean undo of `mint`.
+ *
+ * At-maturity: YieldStripping::redeem_pt(from, amount) -> i128
+ *   Burns `amount` of PT alone, returns underlying. Only callable
+ *   once `block.timestamp >= maturity`.
  */
 
 interface BuildRedeemTxParams {
@@ -78,7 +86,8 @@ interface BuildRedeemTxParams {
     market: Address;
     user: Address;
     ptAmount: bigint;
-    /** When true, calls `redeem_pt_at_maturity`; otherwise `redeem_pt_yt`. */
+    /** When true, calls `redeem_pt`; otherwise the matched-pair
+     *  `redeem_pair`. */
     atMaturity: boolean;
 }
 declare function buildRedeemTx(params: BuildRedeemTxParams): Promise<Transaction>;

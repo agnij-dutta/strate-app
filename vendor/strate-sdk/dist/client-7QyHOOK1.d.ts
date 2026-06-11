@@ -118,10 +118,12 @@ declare function asAddress(value: string): Address;
 declare function isAddress(value: unknown): value is Address;
 
 /**
- * AMM::swap_pt_for_underlying(user, pt_in, min_out) -> i128
- * AMM::swap_underlying_for_pt(user, under_in, min_out) -> i128
+ * AMM::swap_exact_pt_for_sy(trader, pt_in, min_sy_out) -> i128
+ * AMM::swap_sy_for_exact_pt(trader, sy_in, min_pt_out) -> i128
  *
- * `market` here is the AMM contract address (read via readMarket().amm).
+ * "sy" = standardized yield (the underlying side of the AMM in Pendle
+ * parlance). `market` here is the AMM contract address (read via
+ * `readMarket(...).amm`).
  */
 
 type SwapDirection = "PT" | "UNDERLYING";
