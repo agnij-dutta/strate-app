@@ -191,67 +191,71 @@ export async function executeTx(
     throw e;
   }
 
-  let unsigned;
-  switch (params.kind) {
-    case "mint":
-      unsigned = await client.buildMint({
-        market: params.market,
-        underlyingAmount: params.underlyingAmount,
-        user,
-        source,
-      });
-      break;
-    case "redeem":
-      unsigned = await client.buildRedeem({
-        market: params.market,
-        ptAmount: params.ptAmount,
-        atMaturity: params.atMaturity,
-        user,
-        source,
-      });
-      break;
-    case "swap":
-      unsigned = await client.buildSwap({
-        amm: params.amm,
-        tokenIn: params.tokenIn,
-        amountIn: params.amountIn,
-        minAmountOut: params.minAmountOut,
-        user,
-        source,
-      });
-      break;
-    case "claim":
-      unsigned = await client.buildClaimYield({
-        market: params.market,
-        user,
-        source,
-      });
-      break;
-  }
-
   // Dynamic-import the wallet kit so its bundle (~200 KB) only loads when
   // the user actually submits a transaction, not on initial page render.
   const { signXdr } = await import("@/lib/wallet/kit");
 
-  // Try to sign + submit. If the chain reports OracleStale, the Oracle's
-  // TWAP observation has expired (5-min staleness window). We auto-prime
-  // the Oracle with a `sync_rate` tx from the user's wallet, then retry
-  // the original tx once. This costs the user two signing prompts in the
-  // stale-cache case but matches the audit-baseline design where
-  // consumers call sync_rate themselves; the dApp hides the ceremony.
-  //
-  // A backend cron also pings sync_rate every few minutes from a
-  // dedicated keeper wallet (see scripts/keeper/), so a real user should
-  // basically never hit the stale path. This is defense in depth.
-  const trySignAndSubmit = async (xdr: string): Promise<string> => {
-    const signed = await signXdr(xdr, {
+  /**
+   * Build, sign, submit, and poll the user's intended tx once. Pulled
+   * out so we can call it twice in the OracleStale recovery path with
+   * a fresh source-account sequence between attempts.
+   */
+  const buildSignSubmit = async (sourceAccount: typeof source): Promise<string> => {
+    let unsigned;
+    switch (params.kind) {
+      case "mint":
+        unsigned = await client.buildMint({
+          market: params.market,
+          underlyingAmount: params.underlyingAmount,
+          user,
+          source: sourceAccount,
+        });
+        break;
+      case "redeem":
+        unsigned = await client.buildRedeem({
+          market: params.market,
+          ptAmount: params.ptAmount,
+          atMaturity: params.atMaturity,
+          user,
+          source: sourceAccount,
+        });
+        break;
+      case "swap":
+        unsigned = await client.buildSwap({
+          amm: params.amm,
+          tokenIn: params.tokenIn,
+          amountIn: params.amountIn,
+          minAmountOut: params.minAmountOut,
+          user,
+          source: sourceAccount,
+        });
+        break;
+      case "claim":
+        unsigned = await client.buildClaimYield({
+          market: params.market,
+          user,
+          source: sourceAccount,
+        });
+        break;
+    }
+    const signed = await signXdr(unsigned.toXDR(), {
       networkPassphrase: ACTIVE.passphrase,
     });
     return submitAndPoll(signed);
   };
 
+  // First attempt. If the Oracle's TWAP cache has expired the SDK's
+  // prepareTransaction call (which simulates against current ledger
+  // state) returns OracleStale before we ever sign. Catch that, prime
+  // the Oracle with a sync_rate tx from the user's wallet, then retry
+  // with a fresh account sequence.
+  //
+  // The Oracle's sync_rate is permissionless. A backend keeper cron
+  // (queued, separate PR) will also poke sync_rate from a dedicated
+  // wallet on a regular cadence so real users almost never see the
+  // stale path; this is the user-side fallback.
   try {
-    return await trySignAndSubmit(unsigned.toXDR());
+    return await buildSignSubmit(source);
   } catch (e) {
     if (!isOracleStaleError(e)) throw e;
     const target =
@@ -265,47 +269,7 @@ export async function executeTx(
 
     await primeOracle(oracleAddr, walletAddress);
 
-    // Rebuild the original tx — the source account's sequence has
-    // advanced by 1 because we just submitted sync_rate, and
-    // re-signing a stale XDR fails with TxBadAuth.
     const freshSource = await client.server.getAccount(walletAddress);
-    let retry;
-    switch (params.kind) {
-      case "mint":
-        retry = await client.buildMint({
-          market: params.market,
-          underlyingAmount: params.underlyingAmount,
-          user,
-          source: freshSource,
-        });
-        break;
-      case "redeem":
-        retry = await client.buildRedeem({
-          market: params.market,
-          ptAmount: params.ptAmount,
-          atMaturity: params.atMaturity,
-          user,
-          source: freshSource,
-        });
-        break;
-      case "swap":
-        retry = await client.buildSwap({
-          amm: params.amm,
-          tokenIn: params.tokenIn,
-          amountIn: params.amountIn,
-          minAmountOut: params.minAmountOut,
-          user,
-          source: freshSource,
-        });
-        break;
-      case "claim":
-        retry = await client.buildClaimYield({
-          market: params.market,
-          user,
-          source: freshSource,
-        });
-        break;
-    }
-    return await trySignAndSubmit(retry.toXDR());
+    return await buildSignSubmit(freshSource);
   }
 }
