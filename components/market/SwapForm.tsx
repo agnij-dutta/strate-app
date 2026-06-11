@@ -6,6 +6,8 @@ import { useTx } from "@/lib/tx/store";
 import { toUnits } from "@/lib/tx/build";
 import { useWallet } from "@/lib/wallet/store";
 import { fmtApy, fmtPrice } from "@/lib/format";
+import { useSwapQuote } from "@/lib/hooks/use-swap-quote";
+import { useTokenBalance } from "@/lib/hooks/use-token-balance";
 import AmountInput from "./AmountInput";
 import PrimaryButton from "./PrimaryButton";
 
@@ -32,10 +34,12 @@ export default function SwapForm({ market }: { market: MarketSummary }) {
   const value = Number(amount) || 0;
   const isConnected = wallet.status === "connected";
   const isValid = value > 0;
+  const isPtRoute = direction === "buy-pt" || direction === "sell-pt";
 
-  // Simplified pricing for the preview surface. Live, this runs through the
-  // AMM's swap simulator and returns a quote with slippage bounds attached.
-  const price =
+  // Static price used only as a fallback for non-live (mock) markets
+  // and for the YT direction tabs. The live PT swap path uses the
+  // on-chain quote below.
+  const staticPrice =
     direction === "buy-pt" || direction === "sell-pt"
       ? market.ptPrice
       : market.ytPrice;
@@ -53,22 +57,72 @@ export default function SwapForm({ market }: { market: MarketSummary }) {
         : direction === "buy-yt"
           ? `yt-${market.underlying.symbol}`
           : market.underlying.symbol;
-  const out =
-    direction === "buy-pt"
-      ? value / price
+
+  // Live balance for the "Pay" side, read off-chain via simulateTransaction.
+  // For "buy-pt" / "buy-yt" the user spends the underlying; for "sell-pt" /
+  // "sell-yt" the user spends PT or YT respectively.
+  const inTokenAddress = market.isLive && market.contracts
+    ? direction === "buy-pt" || direction === "buy-yt"
+      ? market.contracts.underlying
       : direction === "sell-pt"
-        ? value * price
+        ? market.contracts.pt
+        : market.contracts.yt
+    : undefined;
+  const inBalance = useTokenBalance(inTokenAddress, wallet.address ?? undefined);
+  const inBalanceDisplay = inBalance.data !== undefined
+    ? (Number(inBalance.data) / 10 ** TOKEN_DECIMALS).toFixed(4)
+    : "—";
+
+  // On-chain quote, only for live markets on a PT route. Simulates
+  // the actual AMM call against the user's wallet so the displayed
+  // output matches what the chain would deliver. Falls back to the
+  // static `staticPrice` math for non-live markets.
+  const amountInUnits = toUnits(amount, TOKEN_DECIMALS);
+  const liveQuote = useSwapQuote({
+    amm: market.isLive ? market.contracts?.amm : undefined,
+    direction: direction === "buy-pt" ? "buy-pt" : "sell-pt",
+    amountIn: amountInUnits,
+    enabled: market.isLive && isPtRoute && isConnected && isValid,
+  });
+
+  const staticOut =
+    direction === "buy-pt"
+      ? value / staticPrice
+      : direction === "sell-pt"
+        ? value * staticPrice
         : direction === "buy-yt"
-          ? value / price
-          : value * price;
+          ? value / staticPrice
+          : value * staticPrice;
+
+  const liveOut = liveQuote.data
+    ? Number(liveQuote.data) / 10 ** TOKEN_DECIMALS
+    : undefined;
+
+  const out =
+    market.isLive && isPtRoute
+      ? (liveOut ?? 0) // live: show the chain's number, or 0 while loading
+      : staticOut;
+  const quoteState: "live" | "loading" | "error" | "static" =
+    !market.isLive || !isPtRoute
+      ? "static"
+      : liveQuote.isLoading
+        ? "loading"
+        : liveQuote.isError
+          ? "error"
+          : "live";
 
   const slippageBps = 50; // 0.5%
   const minOut = out * (1 - slippageBps / 10_000);
+  const effectivePrice =
+    value > 0 && out > 0
+      ? direction === "buy-pt"
+        ? value / out // underlying paid per PT received
+        : out / value // underlying received per PT paid
+      : staticPrice;
 
   const onSubmit = () => {
     // The AMM only routes PT ↔ underlying. YT directions fall back to the
     // simulated path until a YT swap builder lands in the SDK.
-    const isPtRoute = direction === "buy-pt" || direction === "sell-pt";
     const params =
       market.isLive && market.contracts && isPtRoute
         ? ({
@@ -87,12 +141,12 @@ export default function SwapForm({ market }: { market: MarketSummary }) {
         { label: "You pay", value: `${value.toFixed(4)} ${inSymbol}` },
         { label: "You receive", value: `${out.toFixed(4)} ${outSymbol}`, emphasis: true },
         { label: "Min received (0.5%)", value: `${minOut.toFixed(4)} ${outSymbol}` },
-        { label: "Effective price", value: fmtPrice(price) },
+        { label: "Effective price", value: fmtPrice(effectivePrice) },
         { label: "Implied APY", value: fmtApy(market.impliedApy) },
       ],
       warning:
-        out / value < 0.5 || out / value > 2
-          ? "Large move against pool depth. Confirm trade size against AMM liquidity."
+        quoteState === "live" && Math.abs(effectivePrice / staticPrice - 1) > 0.1
+          ? "Pool depth is shallow. The effective price differs from the implied price by more than 10%."
           : !isPtRoute && market.isLive
             ? "YT directions are not yet routed on-chain; this preview will record as a simulated transaction."
             : undefined,
@@ -100,6 +154,11 @@ export default function SwapForm({ market }: { market: MarketSummary }) {
       params,
     });
   };
+
+  const reviewDisabled =
+    !isValid ||
+    !isConnected ||
+    (market.isLive && isPtRoute && quoteState !== "live");
 
   return (
     <div className="space-y-5">
@@ -143,7 +202,7 @@ export default function SwapForm({ market }: { market: MarketSummary }) {
         value={amount}
         onChange={setAmount}
         suffix={inSymbol}
-        helper="Balance: 0.0000"
+        helper={`Balance: ${inBalanceDisplay} ${inSymbol}`}
       />
 
       <div className="border border-parchment/10 bg-parchment/[0.02] p-4">
@@ -151,18 +210,41 @@ export default function SwapForm({ market }: { market: MarketSummary }) {
           Receive
         </p>
         <p className="num mt-2 font-display text-[24px] text-parchment">
-          {out.toFixed(4)}{" "}
+          {quoteState === "loading"
+            ? "…"
+            : quoteState === "error"
+              ? "—"
+              : out.toFixed(4)}{" "}
           <span className="text-[14px] text-parchment/60">{outSymbol}</span>
         </p>
         <p className="mt-3 font-mono text-[9.5px] uppercase tracking-[0.28em] text-parchment/40">
-          Min received {minOut.toFixed(4)} {outSymbol} · 0.50% slippage
+          {quoteState === "loading"
+            ? "Quoting against the live AMM…"
+            : quoteState === "error"
+              ? "AMM rejected the quote — likely InsufficientLiquidity or OracleStale. Try again or use a smaller amount."
+              : quoteState === "live"
+                ? `Min received ${minOut.toFixed(4)} ${outSymbol} · 0.50% slippage · live AMM quote`
+                : `Min received ${minOut.toFixed(4)} ${outSymbol} · 0.50% slippage`}
         </p>
+        {quoteState === "live" && Math.abs(effectivePrice / staticPrice - 1) > 0.1 && (
+          <p className="mt-2 font-mono text-[9.5px] uppercase tracking-[0.28em] text-ask">
+            Price impact &gt;10%. Pool depth is shallow.
+          </p>
+        )}
       </div>
 
       <PrimaryButton
         onClick={onSubmit}
-        disabled={!isValid || !isConnected}
-        label={isConnected ? "Review swap" : "Connect wallet to swap"}
+        disabled={reviewDisabled}
+        label={
+          !isConnected
+            ? "Connect wallet to swap"
+            : quoteState === "loading"
+              ? "Quoting…"
+              : quoteState === "error"
+                ? "Quote unavailable"
+                : "Review swap"
+        }
       />
     </div>
   );
