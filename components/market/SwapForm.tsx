@@ -8,6 +8,7 @@ import { useWallet } from "@/lib/wallet/store";
 import { fmtApy, fmtPrice } from "@/lib/format";
 import { useSwapQuote } from "@/lib/hooks/use-swap-quote";
 import { useTokenBalance } from "@/lib/hooks/use-token-balance";
+import { useLiveMarketState } from "@/lib/hooks/use-live-market-state";
 import AmountInput from "./AmountInput";
 import PrimaryButton from "./PrimaryButton";
 
@@ -36,12 +37,17 @@ export default function SwapForm({ market }: { market: MarketSummary }) {
   const isValid = value > 0;
   const isPtRoute = direction === "buy-pt" || direction === "sell-pt";
 
-  // Static price used only as a fallback for non-live (mock) markets
-  // and for the YT direction tabs. The live PT swap path uses the
-  // on-chain quote below.
+  // Live oracle reading for the "static" baseline. We still call it
+  // `staticPrice` to keep the diff small, but it's now the live PT
+  // price from the Oracle (with the LIVE_DISPLAY_DEFAULTS as a final
+  // fallback when not yet loaded). Without this, the shallow-pool
+  // warning misfires once the real PT price drifts from 0.9612.
+  const live = useLiveMarketState(market.isLive ? market.contracts?.yieldStripping : undefined);
+  const livePtPrice = live.ptPrice ?? market.ptPrice;
+  const liveImpliedApy = live.impliedApy ?? market.impliedApy;
   const staticPrice =
     direction === "buy-pt" || direction === "sell-pt"
-      ? market.ptPrice
+      ? livePtPrice
       : market.ytPrice;
   const inSymbol =
     direction === "buy-pt" || direction === "buy-yt"
@@ -142,7 +148,7 @@ export default function SwapForm({ market }: { market: MarketSummary }) {
         { label: "You receive", value: `${out.toFixed(4)} ${outSymbol}`, emphasis: true },
         { label: "Min received (0.5%)", value: `${minOut.toFixed(4)} ${outSymbol}` },
         { label: "Effective price", value: fmtPrice(effectivePrice) },
-        { label: "Implied APY", value: fmtApy(market.impliedApy) },
+        { label: "Implied APY", value: fmtApy(liveImpliedApy) },
       ],
       warning:
         quoteState === "live" && Math.abs(effectivePrice / staticPrice - 1) > 0.1

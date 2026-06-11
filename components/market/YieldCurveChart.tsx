@@ -15,12 +15,13 @@ type Pt = { t: number; apy: number };
 export default function YieldCurveChart({ impliedApy }: { impliedApy: number }) {
   const samples = 64;
   const data: Pt[] = useMemo(() => {
+    // Deterministic shape: exponential decay around the current 90d
+    // sample, no Math.random jitter. The previous version reshuffled
+    // the curve on every render so on a recorded demo the line
+    // visibly twitched on hover. Hold the shape steady.
     return Array.from({ length: samples }, (_, i) => {
       const t = (i / (samples - 1)) * 365; // days
-      const apy =
-        impliedApy *
-        (0.78 + 0.32 * Math.exp(-Math.abs(t - 90) / 180)) *
-        (1 + (Math.random() - 0.5) * 0.012);
+      const apy = impliedApy * (0.78 + 0.32 * Math.exp(-Math.abs(t - 90) / 180));
       return { t, apy };
     });
   }, [impliedApy]);

@@ -9,7 +9,10 @@ export const metadata = {
 
 export default function MarketsPage() {
   const markets = MOCK_MARKETS;
-  const liveCount = markets.filter((m) => m.status === "live").length;
+  // Count only markets that are actually live on chain (have a contracts
+  // entry in addresses.ts). The mock illustrative cards have
+  // status: "live" set for color/style purposes but aren't on chain.
+  const liveCount = markets.filter((m) => m.isLive).length;
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-5 py-10 sm:px-6 sm:py-12 lg:px-10 lg:py-16">

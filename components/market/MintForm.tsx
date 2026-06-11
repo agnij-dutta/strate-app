@@ -7,6 +7,7 @@ import { toUnits } from "@/lib/tx/build";
 import { useWallet } from "@/lib/wallet/store";
 import { fmtApy, fmtPrice } from "@/lib/format";
 import { useTokenBalance } from "@/lib/hooks/use-token-balance";
+import { useLiveMarketState } from "@/lib/hooks/use-live-market-state";
 import AmountInput from "./AmountInput";
 import PrimaryButton from "./PrimaryButton";
 
@@ -34,6 +35,13 @@ export default function MintForm({ market }: { market: MarketSummary }) {
     ? (Number(balanceQ.data) / 10 ** UNDERLYING_DECIMALS).toFixed(4)
     : "—";
 
+  // Live implied APY + PT price for the tx-drawer review rows. Without
+  // this, the drawer shows the static `LIVE_DISPLAY_DEFAULTS` numbers
+  // (5.21% / 0.9612) frozen forever, even after the curve moves on chain.
+  const live = useLiveMarketState(market.isLive ? market.contracts?.yieldStripping : undefined);
+  const reviewApy = live.impliedApy ?? market.impliedApy;
+  const reviewPtPrice = live.ptPrice ?? market.ptPrice;
+
   const onSubmit = () => {
     // Real params iff the market is live AND we have a connected wallet.
     // Otherwise the drawer falls back to the simulated round-trip.
@@ -53,8 +61,8 @@ export default function MintForm({ market }: { market: MarketSummary }) {
         { label: "You deposit", value: `${value.toFixed(4)} ${market.underlying.symbol}` },
         { label: "PT received", value: `${ptOut.toFixed(4)} pt-${market.underlying.symbol}`, emphasis: true },
         { label: "YT received", value: `${ytOut.toFixed(4)} yt-${market.underlying.symbol}`, emphasis: true },
-        { label: "Implied APY at PT mint", value: fmtApy(market.impliedApy) },
-        { label: "Current PT price", value: fmtPrice(market.ptPrice) },
+        { label: "Implied APY at PT mint", value: fmtApy(reviewApy) },
+        { label: "Current PT price", value: fmtPrice(reviewPtPrice) },
       ],
       copy:
         "Mint is reversible by redeeming the matched PT + YT pair before maturity. At maturity the PT alone redeems 1:1 with underlying.",

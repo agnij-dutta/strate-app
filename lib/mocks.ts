@@ -76,7 +76,10 @@ export const MOCK_MARKETS: MarketSummary[] = [
     impliedApy: 0.0823,
     ptPrice: 0.9512,
     ytPrice: 0.0488,
-    tvl: 1_240_000,
+    // Mock TVL was $1.24M; surfaced on screen as real liquidity even
+    // though no contracts back it. Zero out so the mock cards read as
+    // "preview" not "live $1M+ market" on a recorded demo.
+    tvl: 0,
     status: "live",
     isLive: false,
   },
@@ -87,7 +90,7 @@ export const MOCK_MARKETS: MarketSummary[] = [
     impliedApy: 0.1004,
     ptPrice: 0.9655,
     ytPrice: 0.0345,
-    tvl: 480_000,
+    tvl: 0,
     status: "live",
     isLive: false,
   },

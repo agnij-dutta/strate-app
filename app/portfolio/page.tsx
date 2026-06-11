@@ -5,6 +5,7 @@ import { useTx } from "@/lib/tx/store";
 import { useWallet } from "@/lib/wallet/store";
 import { MOCK_MARKETS } from "@/lib/mocks";
 import { useUserPosition } from "@strate/sdk/hooks";
+import { useLiveMarketState } from "@/lib/hooks/use-live-market-state";
 import {
   fmtApy,
   fmtMaturityDate,
@@ -114,6 +115,8 @@ function MarketRow({
   onClaim: (claim: number) => void;
 }) {
   const pos = useUserPosition(market.contracts!.yieldStripping, userAddress);
+  const live = useLiveMarketState(market.contracts!.yieldStripping);
+  const liveApy = live.impliedApy ?? market.impliedApy;
 
   if (pos.isLoading) {
     return (
@@ -165,7 +168,7 @@ function MarketRow({
               Implied APY
             </p>
             <p className="num mt-1 font-display text-[24px] text-foil">
-              {fmtApy(market.impliedApy)}
+              {fmtApy(liveApy)}
             </p>
           </div>
         </div>
