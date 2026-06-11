@@ -6,6 +6,7 @@ import { useTx } from "@/lib/tx/store";
 import { toUnits } from "@/lib/tx/build";
 import { useWallet } from "@/lib/wallet/store";
 import { fmtMaturityDate } from "@/lib/format";
+import { useTokenBalance } from "@/lib/hooks/use-token-balance";
 import AmountInput from "./AmountInput";
 import PrimaryButton from "./PrimaryButton";
 
@@ -24,6 +25,22 @@ export default function RedeemForm({ market }: { market: MarketSummary }) {
   const isValid = value > 0;
 
   const underlyingOut = value;
+
+  // Live PT (and YT) balances. The form's burn input is PT-denominated,
+  // and pre-maturity needs matched YT, so show both for clarity.
+  const ptAddr = market.isLive && market.contracts ? market.contracts.pt : undefined;
+  const ytAddr = market.isLive && market.contracts ? market.contracts.yt : undefined;
+  const ptBalQ = useTokenBalance(ptAddr, wallet.address ?? undefined);
+  const ytBalQ = useTokenBalance(ytAddr, wallet.address ?? undefined);
+  const ptBalDisplay = ptBalQ.data !== undefined
+    ? (Number(ptBalQ.data) / 10 ** PT_DECIMALS).toFixed(4)
+    : "—";
+  const ytBalDisplay = ytBalQ.data !== undefined
+    ? (Number(ytBalQ.data) / 10 ** PT_DECIMALS).toFixed(4)
+    : "—";
+  const helperLine = matured
+    ? `Balance: ${ptBalDisplay} pt-${market.underlying.symbol}  ·  PT-only redemption`
+    : `PT: ${ptBalDisplay}  ·  YT: ${ytBalDisplay}  ·  pair required`;
 
   const onSubmit = () => {
     const params =
@@ -78,7 +95,7 @@ export default function RedeemForm({ market }: { market: MarketSummary }) {
         value={amount}
         onChange={setAmount}
         suffix={`pt-${market.underlying.symbol}`}
-        helper={`Balance: 0.0000  ·  ${matured ? "PT-only redemption" : "PT + YT pair required"}`}
+        helper={helperLine}
       />
 
       <div className="border border-parchment/10 bg-parchment/[0.02] p-4">

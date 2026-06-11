@@ -5,8 +5,8 @@ import type { MarketSummary } from "@/lib/mocks";
 import { useTx } from "@/lib/tx/store";
 import { toUnits } from "@/lib/tx/build";
 import { useWallet } from "@/lib/wallet/store";
-import { IS_MAINNET } from "@/lib/addresses";
 import { fmtApy, fmtPrice } from "@/lib/format";
+import { useTokenBalance } from "@/lib/hooks/use-token-balance";
 import AmountInput from "./AmountInput";
 import PrimaryButton from "./PrimaryButton";
 
@@ -25,6 +25,14 @@ export default function MintForm({ market }: { market: MarketSummary }) {
 
   const isConnected = wallet.status === "connected";
   const isValid = value > 0;
+
+  // Live underlying balance via SAC simulate. Falls back to "—" while
+  // loading and to "0.0000" when zero. Re-runs on wallet change.
+  const underlyingAddr = market.isLive && market.contracts ? market.contracts.underlying : undefined;
+  const balanceQ = useTokenBalance(underlyingAddr, wallet.address ?? undefined);
+  const balanceDisplay = balanceQ.data !== undefined
+    ? (Number(balanceQ.data) / 10 ** UNDERLYING_DECIMALS).toFixed(4)
+    : "—";
 
   const onSubmit = () => {
     // Real params iff the market is live AND we have a connected wallet.
@@ -61,11 +69,7 @@ export default function MintForm({ market }: { market: MarketSummary }) {
         value={amount}
         onChange={setAmount}
         suffix={market.underlying.symbol}
-        helper={
-          IS_MAINNET
-            ? `Balance shown in your wallet · ${market.underlying.symbol} on mainnet`
-            : "Balance: 0.0000 (testnet faucet pending)"
-        }
+        helper={`Balance: ${balanceDisplay} ${market.underlying.symbol}`}
       />
 
       <div className="border border-parchment/10 bg-parchment/[0.02] p-4">
