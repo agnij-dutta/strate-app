@@ -1,0 +1,39 @@
+name: SDK drift guard
+
+# Catches the class of bug where the vendored SDK calls a method name
+# the deployed contract no longer recognizes (e.g. mint_pt_yt -> mint
+# after the H-01 push-topology rename). Every PR has to pass this gate
+# before it can land.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  check-method-names:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dApp
+        uses: actions/checkout@v4
+
+      - name: Checkout protocol (for method-name extraction)
+        uses: actions/checkout@v4
+        with:
+          repository: agnij-dutta/strate-protocol
+          path: strate-protocol
+          ref: main
+
+      - name: Run SDK drift guard
+        env:
+          PROTOCOL_DIR: ${{ github.workspace }}/strate-protocol
+        run: ./scripts/check-sdk-methods.sh
+
+      - name: Smoke-test mint simulation on mainnet
+        # Only on push to main, not on PR (avoids exposing mainnet RPC
+        # quota to fork PRs).
+        if: github.event_name == 'push'
+        run: |
+          npm ci --no-audit --no-fund
+          npm run verify:mainnet-mint

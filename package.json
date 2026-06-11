@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "check:sdk-methods": "./scripts/check-sdk-methods.sh",
+    "verify:mainnet-mint": "node scripts/verify-mainnet-mint.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

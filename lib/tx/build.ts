@@ -4,6 +4,9 @@ import { asAddress } from "@strate/sdk";
 import { getStrateClient } from "@/lib/client";
 import { ACTIVE, EXPLORER_NETWORK, IS_MAINNET } from "@/lib/addresses";
 
+/** YS / Oracle error code for a stale TWAP. */
+const ERROR_ORACLE_STALE = 80;
+
 /**
  * Structured parameters for a transaction the drawer is about to submit.
  * `kind` selects which SDK builder to call; the remaining fields are the
@@ -89,6 +92,77 @@ async function submitAndPoll(signedXdr: string): Promise<string> {
 }
 
 /**
+ * Look up the Oracle address for a given YS / AMM contract. Mint, redeem,
+ * and claim go through YS, which reads from `cfg.oracle`. Swap goes
+ * through AMM, which reads from its own oracle. Both are pre-recorded
+ * in `lib/addresses.ts` so the dApp doesn't have to make an RPC call
+ * to find them.
+ *
+ * Returns `null` if the contract isn't in our registry; in that case
+ * the caller skips the pre-sync and lets the contract surface its own
+ * error.
+ */
+function oracleForContract(contractAddress: string): string | null {
+  for (const m of ACTIVE.markets) {
+    if (m.yieldStripping === contractAddress || m.amm === contractAddress) {
+      return m.oracle;
+    }
+  }
+  return null;
+}
+
+/**
+ * Build + sign + broadcast `Oracle.sync_rate()` for a specific Oracle.
+ * Used as a pre-step before any tx that goes through YS's
+ * `sync_yield_index`, which reads from `Oracle.get_rate()` and reverts
+ * with `OracleStale` (Error #80) if the cache has expired.
+ *
+ * The Oracle's `sync_rate` is permissionless: anyone can call it, no
+ * auth required. We sign with the user's wallet because the SDK
+ * already has the signing pipeline plumbed there. Cost is ~0.1 XLM.
+ */
+async function primeOracle(
+  oracleAddress: string,
+  walletAddress: string,
+): Promise<void> {
+  const client = getStrateClient();
+  const { Address, Contract, TransactionBuilder, BASE_FEE } = await import(
+    "@stellar/stellar-sdk"
+  );
+  const account = await client.server.getAccount(walletAddress);
+  const contract = new Contract(oracleAddress);
+  const tx = new TransactionBuilder(account, {
+    fee: BASE_FEE,
+    networkPassphrase: ACTIVE.passphrase,
+  })
+    .addOperation(contract.call("sync_rate"))
+    .setTimeout(60)
+    .build();
+  const prepared = await client.server.prepareTransaction(tx);
+  const { signXdr } = await import("@/lib/wallet/kit");
+  const signed = await signXdr(prepared.toXDR(), {
+    networkPassphrase: ACTIVE.passphrase,
+  });
+  await submitAndPoll(signed);
+  void Address; // type re-export side effect
+}
+
+/**
+ * Detect the "stale oracle" failure mode by inspecting the host-error
+ * code. Soroban encodes contract errors as `Error(Contract, N)`. We
+ * key off the substring because the SDK error object's shape varies
+ * across stellar-sdk versions.
+ */
+function isOracleStaleError(err: unknown): boolean {
+  const s = err instanceof Error ? err.message : String(err);
+  return (
+    s.includes(`Error(Contract, #${ERROR_ORACLE_STALE})`) ||
+    s.includes("OracleStale") ||
+    s.includes(`get_rate`)
+  );
+}
+
+/**
  * Build, sign, submit, and poll a single Strate transaction. Returns the
  * confirmed transaction hash. The caller passes the typed `TxParams` from
  * the form layer and the connected wallet address.
@@ -158,8 +232,80 @@ export async function executeTx(
   // Dynamic-import the wallet kit so its bundle (~200 KB) only loads when
   // the user actually submits a transaction, not on initial page render.
   const { signXdr } = await import("@/lib/wallet/kit");
-  const signed = await signXdr(unsigned.toXDR(), {
-    networkPassphrase: ACTIVE.passphrase,
-  });
-  return submitAndPoll(signed);
+
+  // Try to sign + submit. If the chain reports OracleStale, the Oracle's
+  // TWAP observation has expired (5-min staleness window). We auto-prime
+  // the Oracle with a `sync_rate` tx from the user's wallet, then retry
+  // the original tx once. This costs the user two signing prompts in the
+  // stale-cache case but matches the audit-baseline design where
+  // consumers call sync_rate themselves; the dApp hides the ceremony.
+  //
+  // A backend cron also pings sync_rate every few minutes from a
+  // dedicated keeper wallet (see scripts/keeper/), so a real user should
+  // basically never hit the stale path. This is defense in depth.
+  const trySignAndSubmit = async (xdr: string): Promise<string> => {
+    const signed = await signXdr(xdr, {
+      networkPassphrase: ACTIVE.passphrase,
+    });
+    return submitAndPoll(signed);
+  };
+
+  try {
+    return await trySignAndSubmit(unsigned.toXDR());
+  } catch (e) {
+    if (!isOracleStaleError(e)) throw e;
+    const target =
+      params.kind === "swap"
+        ? params.amm
+        : params.kind === "claim" || params.kind === "mint" || params.kind === "redeem"
+          ? params.market
+          : null;
+    const oracleAddr = target ? oracleForContract(target) : null;
+    if (!oracleAddr) throw e; // unknown market, can't recover
+
+    await primeOracle(oracleAddr, walletAddress);
+
+    // Rebuild the original tx — the source account's sequence has
+    // advanced by 1 because we just submitted sync_rate, and
+    // re-signing a stale XDR fails with TxBadAuth.
+    const freshSource = await client.server.getAccount(walletAddress);
+    let retry;
+    switch (params.kind) {
+      case "mint":
+        retry = await client.buildMint({
+          market: params.market,
+          underlyingAmount: params.underlyingAmount,
+          user,
+          source: freshSource,
+        });
+        break;
+      case "redeem":
+        retry = await client.buildRedeem({
+          market: params.market,
+          ptAmount: params.ptAmount,
+          atMaturity: params.atMaturity,
+          user,
+          source: freshSource,
+        });
+        break;
+      case "swap":
+        retry = await client.buildSwap({
+          amm: params.amm,
+          tokenIn: params.tokenIn,
+          amountIn: params.amountIn,
+          minAmountOut: params.minAmountOut,
+          user,
+          source: freshSource,
+        });
+        break;
+      case "claim":
+        retry = await client.buildClaimYield({
+          market: params.market,
+          user,
+          source: freshSource,
+        });
+        break;
+    }
+    return await trySignAndSubmit(retry.toXDR());
+  }
 }
